@@ -1,0 +1,44 @@
+{
+  "project": "MinduRun",
+  "mode": "Academic in-memory MVP",
+  "platformStrategy": {
+    "primary": "Flutter Web / Chrome",
+    "secondary": "Android",
+    "design": "Mobile-first responsive"
+  },
+  "stack": {
+    "framework": "Flutter/Dart",
+    "state": "Riverpod",
+    "navigation": "GoRouter",
+    "backend": null,
+    "api": null,
+    "database": null,
+    "persistence": null,
+    "dataSource": "In-memory repositories + deterministic seed data",
+    "evidence": "Flutter assets or in-memory bytes/reference"
+  },
+  "files": [
+    ".agents/agents/local-domain/agent.md",
+    ".agents/agents/mindurun-builder/agent.md",
+    ".agents/agents/mobile-flutter/agent.md",
+    ".agents/agents/qa-reviewer/agent.md",
+    ".agents/rules/coding-quality.md",
+    ".agents/rules/product-scope.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "docs/00_INDEX.md",
+    "docs/01_PRODUCT_SCOPE.md",
+    "docs/02_DOMAIN_RULES.md",
+    "docs/03_ARCHITECTURE.md",
+    "docs/04_LOCAL_DATA_MODEL.md",
+    "docs/05_MOBILE.md",
+    "docs/06_LOCAL_SERVICES.md",
+    "docs/07_SECURITY_PRIVACY.md",
+    "docs/08_TESTING.md",
+    "docs/09_DEVELOPMENT_WORKFLOW.md",
+    "docs/10_ROADMAP.md",
+    "docs/adr/README.md",
+    "docs/manifest.json"
+  ]
+}
