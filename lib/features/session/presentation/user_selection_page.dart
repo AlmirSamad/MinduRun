@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme/app_theme.dart';
+import '../../../app/theme/app_widgets.dart';
 import '../session_providers.dart';
 import '../../demo/presentation/demo_menu.dart';
 
@@ -14,69 +16,111 @@ class UserSelectionPage extends ConsumerWidget {
     final users = ref.watch(availableUsersProvider);
 
     return Scaffold(
-      appBar: AppBar(actions: const [DemoMenu()]),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-          children: [
-            Icon(
-              Icons.directions_run,
-              size: 56,
-              color: theme.colorScheme.primary,
+      body: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: AppTheme.heroGradient,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'MinduRun',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Quem está usando o app?',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Escolha um perfil de demonstração.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            if (users.isEmpty)
-              const Text(
-                'Nenhum usuário disponível.',
-                textAlign: TextAlign.center,
-              ),
-            for (final user in users)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: ListTile(
-                    key: Key('select-user-${user.id}'),
-                    minTileHeight: 64,
-                    leading: CircleAvatar(
-                      child: Text(user.displayName.characters.first),
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 8, 36),
+                child: Column(
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerRight,
+                      child: IconTheme(
+                        data: IconThemeData(color: Colors.white),
+                        child: DemoMenu(),
+                      ),
                     ),
-                    title: Text(
-                      user.displayName,
-                      overflow: TextOverflow.ellipsis,
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.directions_run_rounded,
+                        size: 52,
+                        color: Colors.white,
+                      ),
                     ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => ref
-                        .read(sessionControllerProvider.notifier)
-                        .selectUser(user),
-                  ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'MinduRun',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Corra com seus amigos. Compita. Valide.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ],
-        ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Quem está usando o app?',
+                  style: theme.textTheme.titleLarge,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Escolha um perfil de demonstração.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (users.isEmpty)
+                  const Text(
+                    'Nenhum usuário disponível.',
+                    textAlign: TextAlign.center,
+                  ),
+                for (final user in users)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Card(
+                      clipBehavior: Clip.antiAlias,
+                      child: ListTile(
+                        key: Key('select-user-${user.id}'),
+                        minTileHeight: 68,
+                        leading: UserAvatar(name: user.displayName),
+                        title: Text(
+                          user.displayName,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        trailing: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        ),
+                        onTap: () => ref
+                            .read(sessionControllerProvider.notifier)
+                            .selectUser(user),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

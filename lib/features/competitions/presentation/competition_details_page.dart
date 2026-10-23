@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router/app_router.dart';
 import '../../../app/bootstrap/providers.dart';
+import '../../../app/theme/app_widgets.dart';
 import '../../activities/presentation/competition_activity_feed.dart';
 import '../../session/session_providers.dart';
 import '../../ranking/presentation/competition_ranking_section.dart';
@@ -15,6 +16,7 @@ class CompetitionDetailsPage extends ConsumerWidget {
   final String competitionId;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final competition = ref.watch(competitionByIdProvider(competitionId));
     final participants = ref.watch(
       competitionParticipantsProvider(competitionId),
@@ -57,31 +59,68 @@ class CompetitionDetailsPage extends ConsumerWidget {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
-                Text(
-                  competition.name,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                HeroCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              competition.name,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: CompetitionStatusBadge(
+                              competition: competition,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _HeroLine(
+                        icon: Icons.play_circle_outline_rounded,
+                        text:
+                            'Início: ${formatCompetitionDate(competition.startsAt)}',
+                      ),
+                      _HeroLine(
+                        icon: Icons.outlined_flag_rounded,
+                        text:
+                            'Término: ${formatCompetitionDate(competition.endsAt)}',
+                      ),
+                      _HeroLine(
+                        icon: Icons.people_alt_rounded,
+                        text:
+                            '${competition.participantIds.length} participantes',
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Status'),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: CompetitionStatusBadge(competition: competition),
-                ),
-                const SizedBox(height: 16),
-                Text('Período', style: Theme.of(context).textTheme.titleMedium),
-                Text('Início: ${formatCompetitionDate(competition.startsAt)}'),
-                Text('Término: ${formatCompetitionDate(competition.endsAt)}'),
-                const SizedBox(height: 24),
                 if (canSubmit) ...[
                   FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.tertiary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(56),
+                    ),
                     onPressed: () =>
                         context.push(AppRoutes.newActivity(competitionId)),
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.directions_run_rounded),
                     label: const Text('Registrar atividade'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                 ],
                 CompetitionRankingSection(competitionId: competitionId),
                 const SizedBox(height: 24),
@@ -89,16 +128,31 @@ class CompetitionDetailsPage extends ConsumerWidget {
                   key: const Key('competition-participants'),
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
+                    SectionTitle(
                       'Participantes (${competition.participantIds.length})',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      icon: Icons.people_alt_rounded,
                     ),
-                    const SizedBox(height: 8),
-                    for (final participant in participants)
-                      ListTile(
-                        leading: const Icon(Icons.person),
-                        title: Text(participant.displayName),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final participant in participants)
+                              Chip(
+                                avatar: UserAvatar(
+                                  name: participant.displayName,
+                                  radius: 12,
+                                ),
+                                label: Text(participant.displayName),
+                                backgroundColor:
+                                    theme.colorScheme.surfaceContainerLow,
+                              ),
+                          ],
+                        ),
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -107,4 +161,26 @@ class CompetitionDetailsPage extends ConsumerWidget {
             ),
     );
   }
+}
+
+class _HeroLine extends StatelessWidget {
+  const _HeroLine({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.9)),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.95)),
+          ),
+        ),
+      ],
+    ),
+  );
 }
