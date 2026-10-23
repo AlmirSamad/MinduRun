@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_widgets.dart';
 import '../../../core/models/models.dart';
 import '../competition_providers.dart';
 import 'create_competition_dialog.dart';
@@ -23,13 +24,65 @@ class CompetitionStatusBadge extends ConsumerWidget {
     final status = ref
         .watch(competitionStateServiceProvider)
         .effectiveStatus(competition, ref.watch(clockProvider)());
-    final label = switch (status) {
-      CompetitionStatus.scheduled => 'AGENDADA',
-      CompetitionStatus.active => 'ATIVA',
-      CompetitionStatus.finished => 'FINALIZADA',
-      CompetitionStatus.cancelled => 'CANCELADA',
+    final (label, color, icon) = switch (status) {
+      CompetitionStatus.scheduled => (
+        'AGENDADA',
+        const Color(0xFF3D5AFE),
+        Icons.schedule_rounded,
+      ),
+      CompetitionStatus.active => (
+        'ATIVA',
+        const Color(0xFF0B7A55),
+        Icons.bolt_rounded,
+      ),
+      CompetitionStatus.finished => (
+        'FINALIZADA',
+        const Color(0xFF616161),
+        Icons.flag_rounded,
+      ),
+      CompetitionStatus.cancelled => (
+        'CANCELADA',
+        const Color(0xFFC62828),
+        Icons.block_rounded,
+      ),
     };
-    return Chip(label: Text(label), visualDensity: VisualDensity.compact);
+    return StatusPill(label: label, color: color, icon: icon);
+  }
+}
+
+/// Start/end dates with icons.
+class CompetitionPeriod extends StatelessWidget {
+  const CompetitionPeriod({super.key, required this.competition});
+  final Competition competition;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    Widget line(IconData icon, String text) => Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, style: muted)),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        line(
+          Icons.play_circle_outline_rounded,
+          'Início: ${formatCompetitionDate(competition.startsAt)}',
+        ),
+        line(
+          Icons.outlined_flag_rounded,
+          'Término: ${formatCompetitionDate(competition.endsAt)}',
+        ),
+      ],
+    );
   }
 }
 
@@ -38,13 +91,13 @@ class RoomCompetitionsSection extends ConsumerWidget {
   final String roomId;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final competitions = ref.watch(competitionsForRoomProvider(roomId));
     final canCreate = ref.watch(canCreateCompetitionProvider(roomId));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Competições', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
+        const SectionTitle('Competições', icon: Icons.emoji_events_rounded),
         if (canCreate) ...[
           FilledButton.icon(
             onPressed: () => showDialog<void>(
@@ -61,28 +114,44 @@ class RoomCompetitionsSection extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      competition.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    CompetitionStatusBadge(competition: competition),
-                    Text(
-                      'Início: ${formatCompetitionDate(competition.startsAt)}',
-                    ),
-                    Text(
-                      'Término: ${formatCompetitionDate(competition.endsAt)}',
-                    ),
-                    TextButton(
-                      onPressed: () =>
-                          context.push(AppRoutes.competition(competition.id)),
-                      child: const Text('Ver competição'),
-                    ),
-                  ],
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () =>
+                    context.push(AppRoutes.competition(competition.id)),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              competition.name,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          CompetitionStatusBadge(competition: competition),
+                          const SizedBox(width: 8),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      CompetitionPeriod(competition: competition),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => context.push(
+                            AppRoutes.competition(competition.id),
+                          ),
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          iconAlignment: IconAlignment.end,
+                          label: const Text('Ver competição'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

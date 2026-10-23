@@ -25,6 +25,7 @@ MinduRun is a Flutter multiplatform project with:
 | Tests/QA | `08_TESTING.md` |
 | Git/workflow | `09_DEVELOPMENT_WORKFLOW.md` |
 | Build order | `10_ROADMAP.md` |
+| Install on Android/iPhone | `11_INSTALACAO_DISPOSITIVOS.md` |
 
 ## Important architecture rule
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_widgets.dart';
 import '../room_providers.dart';
 import '../../competitions/presentation/competition_widgets.dart';
 
@@ -12,6 +13,7 @@ class RoomDetailsPage extends ConsumerWidget {
   final String roomId;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final room = ref.watch(roomDetailsProvider(roomId));
     final members = ref.watch(roomMembersProvider(roomId));
     final owner = room == null
@@ -40,36 +42,92 @@ class RoomDetailsPage extends ConsumerWidget {
               ),
             )
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
               children: [
-                Text(
-                  room.name,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 16),
-                const Text('Código de convite'),
-                SelectableText(
-                  room.inviteCode,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                Text('Criador: ${owner?.displayName ?? room.ownerUserId}'),
-                const SizedBox(height: 24),
-                Text(
-                  'Membros (${room.memberIds.length})',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                for (final member in members)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.person),
-                      title: Text(member.displayName),
-                      subtitle: member.id == room.ownerUserId
-                          ? const Text('Proprietário')
-                          : null,
-                    ),
+                HeroCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        room.name,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Criador: ${owner?.displayName ?? room.ownerUserId}',
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.key_rounded, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Código de convite',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.85,
+                                      ),
+                                    ),
+                                  ),
+                                  SelectableText(
+                                    room.inviteCode,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      color: Colors.white,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(height: 24),
+                SectionTitle(
+                  'Membros (${room.memberIds.length})',
+                  icon: Icons.people_alt_rounded,
+                ),
+                Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      for (final member in members)
+                        ListTile(
+                          leading: UserAvatar(name: member.displayName),
+                          title: Text(
+                            member.displayName,
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          trailing: member.id == room.ownerUserId
+                              ? StatusPill(
+                                  label: 'Proprietário',
+                                  color: theme.colorScheme.tertiary,
+                                  icon: Icons.star_rounded,
+                                )
+                              : null,
+                        ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
                 RoomCompetitionsSection(roomId: roomId),
               ],
