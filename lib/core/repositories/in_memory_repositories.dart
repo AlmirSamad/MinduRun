@@ -26,6 +26,11 @@ class InMemoryUserRepository implements UserRepository {
 }
 
 class InMemoryRoomRepository implements RoomRepository {
+  /// Without factories, ids and codes are sequential (deterministic demo).
+  InMemoryRoomRepository({this.newId, this.newInviteCode});
+
+  final IdFactory? newId;
+  final String Function()? newInviteCode;
   final Map<String, Room> _rooms = {};
   int _nextId = 1;
 
@@ -45,8 +50,8 @@ class InMemoryRoomRepository implements RoomRepository {
           .toRadixString(36)
           .toUpperCase()
           .padLeft(4, '0');
-      id = 'room-local-$number';
-      code = 'MR$number';
+      id = newId?.call('room') ?? 'room-local-$number';
+      code = newInviteCode?.call() ?? 'MR$number';
     } while (_rooms.containsKey(id) || findByInviteCode(code) != null);
     final room = Room(
       id: id,
@@ -112,6 +117,9 @@ class InMemoryRoomRepository implements RoomRepository {
 }
 
 class InMemoryCompetitionRepository implements CompetitionRepository {
+  InMemoryCompetitionRepository({this.newId});
+
+  final IdFactory? newId;
   final Map<String, Competition> _competitions = {};
   int _nextId = 1;
 
@@ -142,7 +150,7 @@ class InMemoryCompetitionRepository implements CompetitionRepository {
     if (error != null) throw ArgumentError(error);
     String id;
     do {
-      id = 'competition-local-${_nextId++}';
+      id = newId?.call('competition') ?? 'competition-local-${_nextId++}';
     } while (_competitions.containsKey(id));
     final competition = Competition(
       id: id,
@@ -183,6 +191,9 @@ class InMemoryCompetitionRepository implements CompetitionRepository {
 }
 
 class InMemoryActivityRepository implements ActivityRepository {
+  InMemoryActivityRepository({this.newId});
+
+  final IdFactory? newId;
   final Map<String, Activity> _activities = {};
   final _changes = StreamController<void>.broadcast(sync: true);
   int _nextId = 1;
@@ -209,7 +220,7 @@ class InMemoryActivityRepository implements ActivityRepository {
   }) {
     String id;
     do {
-      id = 'activity-local-${_nextId++}';
+      id = newId?.call('activity') ?? 'activity-local-${_nextId++}';
     } while (_activities.containsKey(id));
     final activity = Activity(
       id: id,
@@ -341,6 +352,18 @@ class InMemoryModerationRepository implements ModerationRepository {
     return updated;
   }
 
+  /// Cache refresh from the remote store: stores without validation.
+  void putReport(ActivityReport report) {
+    _reports[report.id] = report;
+    _changes.add(null);
+  }
+
+  /// Cache refresh from the remote store: stores without validation.
+  void putVote(ReportVote vote) {
+    _votes[vote.id] = vote;
+    _changes.add(null);
+  }
+
   @override
   void clear() {
     _reports.clear();
@@ -375,6 +398,7 @@ class InMemoryEvidenceRepository implements EvidenceRepository {
   bool exists(EvidenceRef ref) => switch (ref.kind) {
     EvidenceKind.asset => _assets.contains(ref.id),
     EvidenceKind.memory => _bytes.containsKey(ref.id),
+    EvidenceKind.remote => false,
   };
 
   @override

@@ -26,9 +26,11 @@ MinduRun is a Flutter multiplatform project with:
 | Git/workflow | `09_DEVELOPMENT_WORKFLOW.md` |
 | Build order | `10_ROADMAP.md` |
 | Install on Android/iPhone | `11_INSTALACAO_DISPOSITIVOS.md` |
+| Real test / Supabase synced mode | `12_SUPABASE.md` |
 
 ## Important architecture rule
 
-The current MVP has no backend, API or database.
+Demo mode has no backend, API or database. The only backend is Supabase, used
+by the build-time synced mode for the real test (`12_SUPABASE.md`).
 
-If implementation starts requiring one, stop and verify whether the user changed project scope.
+If implementation starts requiring any other backend, stop and verify whether the user changed project scope.

@@ -2,8 +2,11 @@ import 'dart:typed_data';
 
 import '../models/models.dart';
 
-/// Repository contracts. Current implementations are in-memory only; a
-/// future backend can provide alternative implementations.
+/// Repository contracts. In-memory implementations back demo mode and act as
+/// the local cache of the Supabase-synced mode.
+
+/// Generates a globally unique id for a new entity (e.g. `room-…`).
+typedef IdFactory = String Function(String prefix);
 
 abstract interface class UserRepository {
   List<User> listUsers();

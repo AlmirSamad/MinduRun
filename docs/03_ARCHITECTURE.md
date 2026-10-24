@@ -2,9 +2,11 @@
 
 ## Architecture style
 
-Flutter-only local MVP.
+Flutter MVP with two build-time modes:
 
-No backend, no API, no database.
+- **Demo mode:** local only. No backend, no API, no database.
+- **Synced mode:** Supabase (anonymous auth, Postgres, realtime, storage) for
+  the real multi-phone test. See "Synced mode" below and `12_SUPABASE.md`.
 
 ## Platform strategy
 
@@ -116,7 +118,31 @@ Examples:
 - `ModerationRepository`
 - optional `EvidenceRepository`
 
-Current implementations are in-memory only.
+Demo mode uses the in-memory implementations directly.
+
+### Synced mode
+
+`lib/core/remote/`:
+
+```text
+Synced*Repository  --reads/validation-->  InMemory*Repository (local cache)
+        |                                         ^
+        | queued writes (in order)                | full snapshot refresh
+        v                                         |
+     SyncEngine  ---------- RemoteStore ----------+
+                     (SupabaseRemoteStore)
+```
+
+- Writes hit the cache first, so controllers and widgets stay synchronous.
+- The engine pushes writes one at a time and rebuilds the cache from a full
+  snapshot on realtime events, every 20 s and on app resume — never while a
+  write is pending.
+- New entities use random ids (`newRemoteId`) and 6-character invite codes so
+  phones never collide.
+- `syncRevisionProvider` is bumped after each rebuild so room, competition and
+  user readers re-query; activities and moderation use repository `changes`.
+- `SyncedStartup` signs in anonymously, downloads the snapshot and overrides
+  the repository providers before showing the app.
 
 ## Evidence architecture
 
@@ -129,8 +155,12 @@ Recommended conceptual model:
 ```text
 EvidenceRef
 - id
-- kind: asset | memory
+- kind: asset | memory | remote
 ```
+
+`remote` evidence (synced mode) is an object path in the Supabase `evidence`
+bucket (`<userId>/evidence-<id>.jpg`), uploaded before the activity row and
+shown with its public URL.
 
 Demo evidence:
 - bundled under `assets/demo/`;
@@ -151,12 +181,13 @@ Domain models should keep only the evidence reference, not platform file objects
 
 ## Authentication
 
-No real authentication.
-
-Use simulated local session:
+Demo mode has no real authentication. It uses a simulated local session:
 - predefined demo users;
 - simple user selector;
 - selected `currentUser`.
+
+Synced mode uses one Supabase anonymous account per phone plus a typed
+display name (`profiles` table). Profile switching and demo reset are hidden.
 
 ## Data reset
 

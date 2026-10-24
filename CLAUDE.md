@@ -18,7 +18,9 @@ This project is an academic Flutter MVP.
 
 Do not build a separate desktop UI for the web presentation.
 
-Do not introduce:
+Since 2026-10-23 the only backend is Supabase, used in the build-time
+"synced mode" for the real multi-phone test (see `AGENTS.md` and
+`docs/12_SUPABASE.md`). Do not introduce any other:
 - backend;
 - API;
 - database;
@@ -26,7 +28,7 @@ Do not introduce:
 - cloud storage;
 - persistence infrastructure.
 
-Use in-memory repositories and seeded demo data.
+Demo mode keeps in-memory repositories and seeded demo data.
 
 Because Web is the primary target:
 - avoid `dart:io` in shared application code;

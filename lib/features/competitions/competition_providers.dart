@@ -8,8 +8,10 @@ import '../session/session_providers.dart';
 
 class CompetitionsController extends Notifier<List<Competition>> {
   @override
-  List<Competition> build() =>
-      ref.watch(competitionRepositoryProvider).listCompetitions();
+  List<Competition> build() {
+    ref.watch(syncRevisionProvider);
+    return ref.watch(competitionRepositoryProvider).listCompetitions();
+  }
 
   Competition createCompetition({
     required String roomId,

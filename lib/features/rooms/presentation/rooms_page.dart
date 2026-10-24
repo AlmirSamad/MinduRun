@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_widgets.dart';
 import '../../session/session_providers.dart';
@@ -30,12 +31,14 @@ class RoomsPage extends ConsumerWidget {
         ),
         actions: [
           const DemoMenu(),
-          IconButton(
-            tooltip: 'Trocar usuário',
-            icon: const Icon(Icons.switch_account),
-            onPressed: () =>
-                ref.read(sessionControllerProvider.notifier).logout(),
-          ),
+          // Synced mode keeps one identity per phone: no profile switching.
+          if (ref.watch(appModeProvider) == AppMode.demo)
+            IconButton(
+              tooltip: 'Trocar usuário',
+              icon: const Icon(Icons.switch_account),
+              onPressed: () =>
+                  ref.read(sessionControllerProvider.notifier).logout(),
+            ),
         ],
       ),
       body: ListView(

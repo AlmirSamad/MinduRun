@@ -20,6 +20,18 @@ class EvidenceImage extends ConsumerWidget {
       );
     }
     final bytes = ref.watch(evidenceRepositoryProvider).getBytes(evidence);
+    final url = ref.watch(evidenceUrlProvider);
+    if (bytes == null && evidence.kind == EvidenceKind.remote && url != null) {
+      return Image.network(
+        url(evidence.id),
+        fit: BoxFit.contain,
+        semanticLabel: 'Evidência da atividade',
+        loadingBuilder: (context, child, progress) => progress == null
+            ? child
+            : const Center(child: CircularProgressIndicator()),
+        errorBuilder: error,
+      );
+    }
     if (bytes == null) {
       return const Text('Evidência indisponível nesta sessão.');
     }

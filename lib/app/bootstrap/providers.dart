@@ -52,6 +52,45 @@ final activitySubmissionServiceProvider = Provider(
 /// Clock used by the app (device time is acceptable for the demo).
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
+/// `demo`: seeded in-memory data on one device (tests, presentation).
+/// `synced`: shared data through Supabase (real multi-phone use).
+enum AppMode { demo, synced }
+
+final appModeProvider = Provider<AppMode>((ref) => AppMode.demo);
+
+/// Supabase auth user id in synced mode; null in demo mode.
+final remoteUserIdProvider = Provider<String?>((ref) => null);
+
+/// Id factory for entities created outside repositories (reports). Null keeps
+/// the deterministic sequential ids of demo mode.
+final newIdProvider = Provider<IdFactory?>((ref) => null);
+
+/// Resolves a remote evidence path to a URL (synced mode only).
+final evidenceUrlProvider = Provider<String Function(String path)?>(
+  (ref) => null,
+);
+
+/// User-facing synchronization messages (synced mode only).
+final syncMessagesProvider = Provider<Stream<String>>(
+  (ref) => const Stream.empty(),
+);
+final syncMessageProvider = StreamProvider<String>(
+  (ref) => ref.watch(syncMessagesProvider),
+);
+
+/// Bumped after the local cache is rebuilt from the server, so readers of
+/// rooms, competitions and users query their repositories again.
+class SyncRevision extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final syncRevisionProvider = NotifierProvider<SyncRevision, int>(
+  SyncRevision.new,
+);
+
 final demoSeedServiceProvider = Provider(
   (ref) => DemoSeedService(
     users: ref.watch(userRepositoryProvider),
