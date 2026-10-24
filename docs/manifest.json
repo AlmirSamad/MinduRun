@@ -1,6 +1,6 @@
 {
   "project": "MinduRun",
-  "mode": "Academic in-memory MVP",
+  "mode": "Academic MVP: in-memory demo mode + Supabase synced mode (build-time)",
   "platformStrategy": {
     "primary": "Flutter Web / Chrome",
     "secondary": "Android",
@@ -10,12 +10,12 @@
     "framework": "Flutter/Dart",
     "state": "Riverpod",
     "navigation": "GoRouter",
-    "backend": null,
-    "api": null,
-    "database": null,
-    "persistence": null,
-    "dataSource": "In-memory repositories + deterministic seed data",
-    "evidence": "Flutter assets or in-memory bytes/reference"
+    "backend": "Supabase (synced mode only)",
+    "api": "Supabase client SDK only",
+    "database": "Supabase Postgres (synced mode only)",
+    "persistence": "None in demo mode; Supabase in synced mode",
+    "dataSource": "In-memory repositories (demo seed, or cache synced with Supabase)",
+    "evidence": "Flutter assets, in-memory bytes, or Supabase storage bucket 'evidence'"
   },
   "files": [
     ".agents/agents/local-domain/agent.md",
@@ -38,7 +38,11 @@
     "docs/08_TESTING.md",
     "docs/09_DEVELOPMENT_WORKFLOW.md",
     "docs/10_ROADMAP.md",
+    "docs/11_INSTALACAO_DISPOSITIVOS.md",
+    "docs/12_SUPABASE.md",
+    "docs/13_HISTORICO_DE_MUDANCAS.md",
     "docs/adr/README.md",
+    "docs/adr/0001-supabase-synced-mode.md",
     "docs/manifest.json"
   ]
 }
