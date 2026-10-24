@@ -226,6 +226,22 @@ void main() {
     expect(remote.calls, ['upload:${ref.id}', 'activity:${activity.id}']);
   });
 
+  test('status reports pending writes, last sync and offline', () async {
+    final statuses = <SyncStatus>[];
+    engine.onStatus = statuses.add;
+    SyncedUserRepository(engine)
+        .addUser(const User(id: 'u1', displayName: 'Ana'));
+    expect(statuses.last.pendingWrites, 1);
+    await engine.flush();
+    expect(statuses.last.pendingWrites, 0);
+    await engine.refresh();
+    expect(engine.status.lastSync, isNotNull);
+    expect(engine.status.offline, isFalse);
+    remote.failFetch = true;
+    await engine.refresh();
+    expect(statuses.last.offline, isTrue);
+  });
+
   test('refresh corrects the phone clock with the server time', () async {
     remote.snapshot = RemoteSnapshot(
       serverTime: DateTime.now().add(const Duration(hours: 3)),

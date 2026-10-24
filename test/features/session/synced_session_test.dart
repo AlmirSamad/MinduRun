@@ -59,6 +59,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(RoomsPage), findsOneWidget);
+    // First entry shows the rules once.
+    expect(find.text('Como funciona'), findsWidgets);
+    await tester.tap(find.text('Entendi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Entendi'), findsNothing);
     expect(find.text('Usuário atual: Roberto'), findsOneWidget);
     expect(find.byTooltip('Trocar usuário'), findsNothing);
     expect(find.byTooltip('Opções da demonstração'), findsNothing);

@@ -41,10 +41,23 @@ class _ActivitySubmissionPageState
     super.dispose();
   }
 
+  /// True once the user typed a pace: then it is never overwritten.
+  bool _paceTyped = false;
+
   void _changed() => setState(() {
     _preview = null;
     _error = null;
   });
+
+  /// Fills the pace from distance and duration while the user has not typed
+  /// one (clearing the field resumes the automatic value).
+  void _metricsChanged() {
+    if (!_paceTyped) {
+      _pace.text =
+          ActivityInput.suggestPace(_distance.text, _duration.text) ?? '';
+    }
+    _changed();
+  }
 
   Future<void> _pickEvidence() async {
     if (_picking || _published) return;
@@ -260,7 +273,7 @@ class _ActivitySubmissionPageState
                       decimal: true,
                     ),
                     validator: ActivityInput.validateDistance,
-                    onChanged: (_) => _changed(),
+                    onChanged: (_) => _metricsChanged(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -274,21 +287,34 @@ class _ActivitySubmissionPageState
                     ),
                     keyboardType: TextInputType.datetime,
                     validator: ActivityInput.validateDuration,
-                    onChanged: (_) => _changed(),
+                    onChanged: (_) => _metricsChanged(),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     key: const Key('activity-pace'),
                     controller: _pace,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Ritmo médio (MM:SS/km)',
                       hintText: '06:04',
-                      prefixIcon: Icon(Icons.speed_rounded),
+                      prefixIcon: const Icon(Icons.speed_rounded),
                       errorMaxLines: 3,
+                      helperText: _paceTyped ? null : 'Calculado pela distância e duração. Ajuste se o app de corrida mostrar outro valor.',
+                      helperMaxLines: 2,
                     ),
                     keyboardType: TextInputType.datetime,
                     validator: ActivityInput.validatePace,
-                    onChanged: (_) => _changed(),
+                    onChanged: (text) {
+                      _paceTyped = text.trim().isNotEmpty;
+                      if (!_paceTyped) {
+                        _pace.text =
+                            ActivityInput.suggestPace(
+                              _distance.text,
+                              _duration.text,
+                            ) ??
+                            '';
+                      }
+                      _changed();
+                    },
                   ),
                   const SizedBox(height: 16),
                   if (_error != null) ...[

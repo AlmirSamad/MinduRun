@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/app_widgets.dart';
+import '../../../core/services/room_rules.dart';
 import '../room_providers.dart';
 import '../../competitions/presentation/competition_widgets.dart';
 
@@ -43,71 +45,78 @@ class RoomDetailsPage extends ConsumerWidget {
                 child: Text('Sala não encontrada ou você não participa dela.'),
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                HeroCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(room.name, style: theme.textTheme.headlineSmall),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 16,
-                            color: AppColors.gold,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Criador: ${owner?.displayName ?? room.ownerUserId}',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+          : RefreshIndicator(
+              onRefresh: ref.read(refreshDataProvider),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  HeroCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(room.name, style: theme.textTheme.headlineSmall),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: AppColors.gold,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'Criador: ${owner?.displayName ?? room.ownerUserId}',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _InviteCodeBox(code: room.inviteCode),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-                SectionTitle(
-                  'Membros (${room.memberIds.length})',
-                  icon: Icons.group_rounded,
-                ),
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      for (final (index, member) in members.indexed) ...[
-                        if (index > 0) const Divider(height: 1, indent: 72),
-                        ListTile(
-                          minTileHeight: 60,
-                          leading: UserAvatar(name: member.displayName),
-                          title: Text(
-                            member.displayName,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          trailing: member.id == room.ownerUserId
-                              ? const StatusPill(
-                                  label: 'Proprietário',
-                                  color: AppColors.gold,
-                                  icon: Icons.star_rounded,
-                                )
-                              : null,
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _InviteCodeBox(
+                          code: room.inviteCode,
+                          roomName: room.name,
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 28),
-                RoomCompetitionsSection(roomId: roomId),
-              ],
+                  const SizedBox(height: 28),
+                  SectionTitle(
+                    'Membros (${room.memberIds.length})',
+                    icon: Icons.group_rounded,
+                  ),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        for (final (index, member) in members.indexed) ...[
+                          if (index > 0) const Divider(height: 1, indent: 72),
+                          ListTile(
+                            minTileHeight: 60,
+                            leading: UserAvatar(name: member.displayName),
+                            title: Text(
+                              member.displayName,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            trailing: member.id == room.ownerUserId
+                                ? const StatusPill(
+                                    label: 'Proprietário',
+                                    color: AppColors.gold,
+                                    icon: Icons.star_rounded,
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  RoomCompetitionsSection(roomId: roomId),
+                ],
+              ),
             ),
     );
   }
@@ -115,8 +124,9 @@ class RoomDetailsPage extends ConsumerWidget {
 
 /// Invite code in large sporty digits with a copy action.
 class _InviteCodeBox extends StatefulWidget {
-  const _InviteCodeBox({required this.code});
+  const _InviteCodeBox({required this.code, required this.roomName});
   final String code;
+  final String roomName;
 
   @override
   State<_InviteCodeBox> createState() => _InviteCodeBoxState();
@@ -133,6 +143,27 @@ class _InviteCodeBoxState extends State<_InviteCodeBox> {
     messenger.showSnackBar(const SnackBar(content: Text('Código copiado.')));
     await Future<void>.delayed(const Duration(milliseconds: 1500));
     if (mounted) setState(() => _copied = false);
+  }
+
+  /// System share sheet (WhatsApp, Telegram…) with a ready invitation.
+  Future<void> _share() async {
+    final text = RoomRules.inviteMessage(
+      roomName: widget.roomName,
+      inviteCode: widget.code,
+    );
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: text, subject: 'Convite MinduRun'),
+      );
+    } catch (_) {
+      // Browsers without the Web Share API: fall back to the clipboard.
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Convite copiado. Cole na conversa.')),
+        );
+      }
+    }
   }
 
   @override
@@ -168,6 +199,11 @@ class _InviteCodeBoxState extends State<_InviteCodeBox> {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            tooltip: 'Compartilhar convite',
+            onPressed: _share,
+            icon: const Icon(Icons.share_rounded, color: AppColors.textPrimary),
           ),
           IconButton(
             tooltip: 'Copiar código',

@@ -142,6 +142,7 @@ class _NameFormState extends ConsumerState<_NameForm> {
     final valid = _form.currentState!.validate();
     setState(() => _consentMissing = !_consented);
     if (!valid || !_consented) return;
+    ref.read(howItWorksFlagProvider).pending = true;
     ref.read(sessionControllerProvider.notifier).saveProfile(_name.text);
   }
 

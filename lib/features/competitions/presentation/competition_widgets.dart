@@ -7,6 +7,7 @@ import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/app_widgets.dart';
 import '../../../core/models/models.dart';
+import '../../../core/services/competition_countdown.dart';
 import '../competition_providers.dart';
 import 'create_competition_dialog.dart';
 
@@ -59,12 +60,17 @@ class CompetitionStatusBadge extends ConsumerWidget {
   }
 }
 
-/// Start/end dates and participant count with icons.
-class CompetitionPeriod extends StatelessWidget {
+/// Countdown, start/end dates and participant count with icons.
+class CompetitionPeriod extends ConsumerWidget {
   const CompetitionPeriod({super.key, required this.competition});
   final Competition competition;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countdown = competitionCountdown(
+      competition,
+      ref.watch(clockProvider)(),
+      state: ref.watch(competitionStateServiceProvider),
+    );
     final muted = Theme.of(context).textTheme.bodySmall
         ?.copyWith(color: AppColors.textSecondary);
     Widget line(IconData icon, String text) => Padding(
@@ -80,6 +86,30 @@ class CompetitionPeriod extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (countdown != null)
+          Padding(
+            key: const Key('competition-countdown'),
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    countdown,
+                    style: muted?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         line(
           Icons.calendar_month_rounded,
           'Início: ${formatCompetitionDate(competition.startsAt)}',

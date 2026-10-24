@@ -3,6 +3,20 @@ import 'dart:async';
 import '../repositories/in_memory_repositories.dart';
 import 'remote_store.dart';
 
+/// What the user needs to trust the data on screen.
+class SyncStatus {
+  const SyncStatus({
+    this.lastSync,
+    this.offline = false,
+    this.pendingWrites = 0,
+  });
+
+  /// Last successful download from the server (phone clock).
+  final DateTime? lastSync;
+  final bool offline;
+  final int pendingWrites;
+}
+
 /// Keeps the in-memory repositories (the local cache) in sync with the
 /// remote store.
 ///
@@ -38,6 +52,18 @@ class SyncEngine {
   /// Called after the cache was rebuilt from the remote store.
   void Function()? onRefreshed;
 
+  /// Called whenever [status] changes.
+  void Function(SyncStatus status)? onStatus;
+  DateTime? _lastSync;
+
+  SyncStatus get status => SyncStatus(
+    lastSync: _lastSync,
+    offline: _offline,
+    pendingWrites: _pending,
+  );
+
+  void _emitStatus() => onStatus?.call(status);
+
   /// Server time minus phone time, updated on every refresh.
   Duration clockOffset = Duration.zero;
 
@@ -66,6 +92,7 @@ class SyncEngine {
   /// server, unless [silent] (used for best-effort prefetch uploads).
   Future<bool> enqueue(Future<void> Function() job, {bool silent = false}) {
     _pending++;
+    _emitStatus();
     final result = Completer<bool>();
     _queue = _queue.then((_) async {
       try {
@@ -84,6 +111,7 @@ class SyncEngine {
         }
       } finally {
         _pending--;
+        _emitStatus();
         if (_pending == 0 && _refreshWanted) unawaited(refresh());
       }
     });
@@ -118,7 +146,9 @@ class SyncEngine {
         _apply(snapshot);
         if (_offline) _messages.add('Conexão restabelecida.');
         _offline = false;
+        _lastSync = DateTime.now();
         onRefreshed?.call();
+        _emitStatus();
       }
     } catch (_) {
       if (throwOnError) rethrow;
@@ -126,6 +156,7 @@ class SyncEngine {
         _messages.add('Sem conexão com o servidor. Tentando novamente…');
       }
       _offline = true;
+      _emitStatus();
     } finally {
       _refreshing = false;
     }

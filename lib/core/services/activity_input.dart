@@ -52,4 +52,15 @@ abstract final class ActivityInput {
       : '${_two(seconds ~/ 3600)}:${_two(seconds ~/ 60 % 60)}:${_two(seconds % 60)}';
   static String formatPace(int seconds) =>
       '${_two(seconds ~/ 60)}:${_two(seconds % 60)}/km';
+
+  /// Pace (MM:SS, as typed in the form) implied by valid distance and
+  /// duration texts, rounded to the second; null while either is invalid.
+  static String? suggestPace(String distance, String duration) {
+    final km = parseDistance(distance);
+    final seconds = parseDuration(duration);
+    if (km == null || seconds == null) return null;
+    final pace = (seconds / km).round();
+    if (pace <= 0) return null;
+    return '${_two(pace ~/ 60)}:${_two(pace % 60)}';
+  }
 }

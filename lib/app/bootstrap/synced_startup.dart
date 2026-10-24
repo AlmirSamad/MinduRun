@@ -82,6 +82,7 @@ class _SyncedStartupState extends State<SyncedStartup> {
         overrides: [
           appModeProvider.overrideWithValue(AppMode.synced),
           clockProvider.overrideWithValue(engine.now),
+          refreshDataProvider.overrideWithValue(engine.refresh),
           remoteUserIdProvider.overrideWithValue(userId),
           newIdProvider.overrideWithValue(newRemoteId),
           evidenceUrlProvider.overrideWithValue(remote.evidenceUrl),
@@ -107,6 +108,9 @@ class _SyncedStartupState extends State<SyncedStartup> {
       );
       engine.onRefreshed = () =>
           container.read(syncRevisionProvider.notifier).bump();
+      engine.onStatus = (status) =>
+          container.read(syncStatusProvider.notifier).set(status);
+      container.read(syncStatusProvider.notifier).set(engine.status);
       engine.start();
       _lifecycle = AppLifecycleListener(onResume: engine.refreshSoon);
       final me = engine.users.getUser(userId);
