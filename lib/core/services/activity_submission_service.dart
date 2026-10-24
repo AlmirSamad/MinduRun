@@ -28,6 +28,22 @@ class ActivitySubmissionService {
     return null;
   }
 
+  /// The same screenshot (by fingerprint) may back only one activity per
+  /// competition, whatever that activity's moderation status.
+  String? duplicateEvidenceError({
+    required String? evidenceHash,
+    required String competitionId,
+    required List<Activity> existing,
+  }) =>
+      evidenceHash != null &&
+          existing.any(
+            (a) =>
+                a.competitionId == competitionId &&
+                a.evidenceHash == evidenceHash,
+          )
+      ? 'Este print já foi usado em outra atividade desta competição.'
+      : null;
+
   String? metricsError({
     required double distanceKm,
     required int durationSeconds,

@@ -33,6 +33,12 @@ Regras de domínio, telas e testes são os mesmos nos dois modos.
   repetem as regras do app e apuram a votação de forma atômica. O servidor
   também só aceita corrida de participante, dentro do período, pelo relógio
   do servidor. Nenhum celular altera status de moderação diretamente.
+- **Relógio:** a cada recarga o app mede a hora do servidor e corrige a do
+  celular, então status (agendada/ativa/finalizada) é igual em todos.
+- **Print duplicado:** o mesmo print não pode ser usado duas vezes na mesma
+  competição (bloqueado no app e por índice único no banco).
+- **Resultado final:** quando a competição termina, aparece campeão e pódio
+  ("provisório" enquanto houver denúncia em votação).
 
 Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
 `lib/app/bootstrap/synced_startup.dart`.
@@ -43,8 +49,9 @@ Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
    (São Paulo)*).
 2. **SQL Editor → New query**: cole o conteúdo de `supabase/schema.sql` e clique
    em **Run**. (Rodar de novo apaga todos os dados do MinduRun.)
-   Depois, numa nova query, rode `supabase/migrations/002_join_and_server_moderation.sql`
-   (pode ser rodado de novo sem perder dados).
+   Depois, cada uma numa nova query e nesta ordem, rode as migrações de
+   `supabase/migrations/` (podem ser rodadas de novo sem perder dados):
+   `002_join_and_server_moderation.sql` e `003_duplicates_and_clock.sql`.
 3. **Authentication → Sign In / Providers**: ative **Allow anonymous sign-ins**.
 4. **Project Settings → API Keys**: copie a *Project URL* e a *Publishable key*
    (ou a *anon public* legada).

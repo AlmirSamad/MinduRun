@@ -115,6 +115,7 @@ class Activity {
     required this.score,
     required this.moderationStatus,
     required this.submittedAt,
+    this.evidenceHash,
   });
 
   final String id;
@@ -128,6 +129,9 @@ class Activity {
   final ActivityModerationStatus moderationStatus;
   final DateTime submittedAt;
 
+  /// SHA-256 of the evidence bytes (null for bundled demo evidence).
+  final String? evidenceHash;
+
   Activity copyWith({ActivityModerationStatus? moderationStatus}) => Activity(
     id: id,
     competitionId: competitionId,
@@ -139,6 +143,7 @@ class Activity {
     score: score,
     moderationStatus: moderationStatus ?? this.moderationStatus,
     submittedAt: submittedAt,
+    evidenceHash: evidenceHash,
   );
 }
 

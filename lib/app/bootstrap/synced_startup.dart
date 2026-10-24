@@ -80,6 +80,7 @@ class _SyncedStartupState extends State<SyncedStartup> {
       final container = ProviderContainer(
         overrides: [
           appModeProvider.overrideWithValue(AppMode.synced),
+          clockProvider.overrideWithValue(engine.now),
           remoteUserIdProvider.overrideWithValue(userId),
           newIdProvider.overrideWithValue(newRemoteId),
           evidenceUrlProvider.overrideWithValue(remote.evidenceUrl),

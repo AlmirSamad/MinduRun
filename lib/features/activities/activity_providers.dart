@@ -75,6 +75,14 @@ class ActivitiesController extends Notifier<List<Activity>> {
         !ref.read(evidenceRepositoryProvider).exists(evidence)) {
       throw const FormatException('Selecione uma imagem de evidência.');
     }
+    final duplicate = service.duplicateEvidenceError(
+      evidenceHash: ref.read(evidenceRepositoryProvider).hashOf(evidence),
+      competitionId: competitionId,
+      existing: ref
+          .read(activityRepositoryProvider)
+          .listCompetitionActivities(competitionId),
+    );
+    if (duplicate != null) throw FormatException(duplicate);
     final distanceKm = ActivityInput.parseDistance(distance);
     final durationSeconds = ActivityInput.parseDuration(duration);
     final paceSeconds = ActivityInput.parsePace(pace);
@@ -126,6 +134,7 @@ class ActivitiesController extends Notifier<List<Activity>> {
       evidenceRef: evidence!,
       score: values.score,
       submittedAt: ref.read(clockProvider)(),
+      evidenceHash: ref.read(evidenceRepositoryProvider).hashOf(evidence),
     );
     return activity;
   }

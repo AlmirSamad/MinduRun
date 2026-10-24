@@ -226,6 +226,15 @@ void main() {
     expect(remote.calls, ['upload:${ref.id}', 'activity:${activity.id}']);
   });
 
+  test('refresh corrects the phone clock with the server time', () async {
+    remote.snapshot = RemoteSnapshot(
+      serverTime: DateTime.now().add(const Duration(hours: 3)),
+    );
+    await engine.refresh();
+    final drift = engine.now().difference(DateTime.now());
+    expect(drift.inMinutes, closeTo(180, 1));
+  });
+
   test('realtime notifications schedule a refresh', () async {
     engine.start();
     remote.snapshot = const RemoteSnapshot(

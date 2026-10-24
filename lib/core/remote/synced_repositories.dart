@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../models/models.dart';
 import '../repositories/in_memory_repositories.dart';
 import '../repositories/repositories.dart';
+import '../services/evidence_hash.dart';
 import 'remote_ids.dart';
 import 'sync_engine.dart';
 import 'supabase_remote_store.dart';
@@ -185,6 +186,7 @@ class SyncedActivityRepository implements ActivityRepository {
     required EvidenceRef evidenceRef,
     required int score,
     required DateTime submittedAt,
+    String? evidenceHash,
   }) {
     final activity = _cache.createLocalActivity(
       competitionId: competitionId,
@@ -195,6 +197,7 @@ class SyncedActivityRepository implements ActivityRepository {
       evidenceRef: evidenceRef,
       score: score,
       submittedAt: submittedAt,
+      evidenceHash: evidenceHash,
     );
     _saves[activity.id] = _engine.enqueue(() async {
       if (evidenceRef.kind == EvidenceKind.remote) {
@@ -296,6 +299,12 @@ class SyncedEvidenceRepository implements EvidenceRepository {
   @override
   Uint8List? getBytes(EvidenceRef ref) =>
       ref.kind == EvidenceKind.remote ? _bytes[ref.id] : null;
+
+  @override
+  String? hashOf(EvidenceRef ref) {
+    final bytes = getBytes(ref);
+    return bytes == null ? null : evidenceHash(bytes);
+  }
 
   @override
   bool exists(EvidenceRef ref) => switch (ref.kind) {

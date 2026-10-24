@@ -86,6 +86,7 @@ abstract interface class ActivityRepository {
     required EvidenceRef evidenceRef,
     required int score,
     required DateTime submittedAt,
+    String? evidenceHash,
   });
   Activity? updateModerationStatus(
     String activityId,
@@ -122,6 +123,9 @@ abstract interface class EvidenceRepository {
 
   /// Returns bytes for a memory reference, or null.
   Uint8List? getBytes(EvidenceRef ref);
+
+  /// Fingerprint of stored user-selected evidence (null for assets).
+  String? hashOf(EvidenceRef ref);
 
   bool exists(EvidenceRef ref);
 

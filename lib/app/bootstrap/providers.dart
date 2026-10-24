@@ -42,6 +42,11 @@ final rankingServiceProvider = Provider(
   (ref) => RankingService(scoring: ref.watch(scoringServiceProvider)),
 );
 final moderationServiceProvider = Provider((ref) => const ModerationService());
+final competitionResultServiceProvider = Provider(
+  (ref) => CompetitionResultService(
+    competitionState: ref.watch(competitionStateServiceProvider),
+  ),
+);
 final activitySubmissionServiceProvider = Provider(
   (ref) => ActivitySubmissionService(
     competitionState: ref.watch(competitionStateServiceProvider),

@@ -163,3 +163,29 @@ historical scores from distance. Rejected activities stay visible in the
 feed with zero contribution and their original score identified separately.
 
 No persisted ranking table is needed.
+
+## Final result
+
+Only a `FINISHED` competition has a result (`CompetitionResultService`),
+derived from the same ranking:
+- winner = first place, if it has points; nobody scoring means no winner;
+- participants tied with first place on score **and** accepted distance share
+  the victory (participant order is only visual, never a sporting advantage);
+- podium = up to three ranked entries with points;
+- while any report on the competition's activities is still open, the result
+  is shown as provisional, because moderation may continue after the end.
+
+## Duplicate evidence
+
+The same screenshot (SHA-256 of the image bytes) may back only one activity
+per competition, whatever that activity's moderation status. The app blocks
+it on preview and publish; in synced mode a unique index on
+`(competition_id, evidence_hash)` enforces it on the server. Bundled demo
+evidence has no fingerprint. Recompressed or cropped copies of the same
+screenshot are not detected; those still rely on reports (`DUPLICATE_ACTIVITY`).
+
+## Time
+
+Demo mode uses device time. Synced mode corrects the device clock with the
+server clock (`server_now`) on every refresh, and the server validates the
+submission window with its own time.

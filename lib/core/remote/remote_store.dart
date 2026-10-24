@@ -11,6 +11,7 @@ class RemoteSnapshot {
     this.activities = const [],
     this.reports = const [],
     this.votes = const [],
+    this.serverTime,
   });
 
   final List<User> users;
@@ -19,6 +20,9 @@ class RemoteSnapshot {
   final List<Activity> activities;
   final List<ActivityReport> reports;
   final List<ReportVote> votes;
+
+  /// Server clock when the snapshot was read (corrects wrong phone clocks).
+  final DateTime? serverTime;
 }
 
 /// The server refused a write because a rule failed (e.g. the report was
@@ -148,6 +152,7 @@ abstract final class RemoteRows {
       row['moderation_status'] as String,
     ),
     submittedAt: _parseDate(row['submitted_at']),
+    evidenceHash: row['evidence_hash'] as String?,
   );
 
   static Map<String, dynamic> activityRow(Activity a) => {
@@ -162,6 +167,7 @@ abstract final class RemoteRows {
     'score': a.score,
     'moderation_status': a.moderationStatus.name,
     'submitted_at': _date(a.submittedAt),
+    'evidence_hash': a.evidenceHash,
   };
 
   static ActivityReport report(Map<String, dynamic> row) => ActivityReport(

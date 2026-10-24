@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../services/room_rules.dart';
 import '../services/competition_rules.dart';
 import '../services/domain_services.dart';
+import '../services/evidence_hash.dart';
 import 'repositories.dart';
 
 /// In-memory implementations. Data lives only while the app runs.
@@ -236,6 +237,7 @@ class InMemoryActivityRepository implements ActivityRepository {
     required EvidenceRef evidenceRef,
     required int score,
     required DateTime submittedAt,
+    String? evidenceHash,
   }) {
     String id;
     do {
@@ -252,6 +254,7 @@ class InMemoryActivityRepository implements ActivityRepository {
       score: score,
       moderationStatus: ActivityModerationStatus.published,
       submittedAt: submittedAt,
+      evidenceHash: evidenceHash,
     );
     createActivity(activity);
     return activity;
@@ -412,6 +415,12 @@ class InMemoryEvidenceRepository implements EvidenceRepository {
   @override
   Uint8List? getBytes(EvidenceRef ref) =>
       ref.kind == EvidenceKind.memory ? _bytes[ref.id] : null;
+
+  @override
+  String? hashOf(EvidenceRef ref) {
+    final bytes = getBytes(ref);
+    return bytes == null ? null : evidenceHash(bytes);
+  }
 
   @override
   bool exists(EvidenceRef ref) => switch (ref.kind) {

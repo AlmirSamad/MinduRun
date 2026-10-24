@@ -8,6 +8,7 @@ import '../../../app/theme/app_widgets.dart';
 import '../../activities/presentation/competition_activity_feed.dart';
 import '../../session/session_providers.dart';
 import '../../ranking/presentation/competition_ranking_section.dart';
+import '../../ranking/presentation/competition_result_section.dart';
 import '../competition_providers.dart';
 import 'competition_widgets.dart';
 
@@ -149,6 +150,7 @@ class CompetitionDetailsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                 ],
+                CompetitionResultSection(competitionId: competitionId),
                 CompetitionRankingSection(competitionId: competitionId),
                 const SizedBox(height: 24),
                 Column(

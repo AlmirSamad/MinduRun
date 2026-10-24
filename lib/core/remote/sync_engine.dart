@@ -38,6 +38,12 @@ class SyncEngine {
   /// Called after the cache was rebuilt from the remote store.
   void Function()? onRefreshed;
 
+  /// Server time minus phone time, updated on every refresh.
+  Duration clockOffset = Duration.zero;
+
+  /// Phone time corrected to the server clock.
+  DateTime now() => DateTime.now().add(clockOffset);
+
   final _messages = StreamController<String>.broadcast();
   Future<void> _queue = Future.value();
   int _pending = 0;
@@ -97,7 +103,14 @@ class SyncEngine {
     _refreshing = true;
     _refreshWanted = false;
     try {
+      final started = DateTime.now();
       final snapshot = await remote.fetchAll();
+      final serverTime = snapshot.serverTime;
+      if (serverTime != null) {
+        // Assume the server read happened halfway through the round trip.
+        final midpoint = started.add(DateTime.now().difference(started) ~/ 2);
+        clockOffset = serverTime.difference(midpoint);
+      }
       if (_pending > 0) {
         // A local write started meanwhile; this snapshot may predate it.
         _refreshWanted = true;
