@@ -108,6 +108,17 @@ class InMemoryRoomRepository implements RoomRepository {
   }
 
   @override
+  Room? removeMember(String roomId, String userId) {
+    final room = _rooms[roomId];
+    if (room == null) return null;
+    final updated = room.copyWith(
+      memberIds: List.unmodifiable(room.memberIds.where((id) => id != userId)),
+    );
+    _rooms[roomId] = updated;
+    return updated;
+  }
+
+  @override
   List<String> getMemberIds(String roomId) => _rooms[roomId]?.memberIds ?? [];
 
   @override
@@ -226,6 +237,13 @@ class InMemoryActivityRepository implements ActivityRepository {
   @override
   Future<bool> whenSaved(String activityId) =>
       Future.value(_activities.containsKey(activityId));
+
+  @override
+  bool deleteActivity(String activityId) {
+    final removed = _activities.remove(activityId) != null;
+    if (removed) _changes.add(null);
+    return removed;
+  }
 
   @override
   Activity createLocalActivity({
@@ -390,6 +408,60 @@ class InMemoryModerationRepository implements ModerationRepository {
   void clear() {
     _reports.clear();
     _votes.clear();
+    _changes.add(null);
+  }
+}
+
+class InMemorySocialRepository implements SocialRepository {
+  final Map<String, ActivityLike> _likes = {};
+  final Map<String, ActivityComment> _comments = {};
+  final _changes = StreamController<void>.broadcast(sync: true);
+
+  static String _likeKey(String activityId, String userId) =>
+      '$activityId|$userId';
+
+  @override
+  Stream<void> get changes => _changes.stream;
+
+  @override
+  void dispose() => unawaited(_changes.close());
+
+  @override
+  List<ActivityLike> listLikes(String activityId) =>
+      List.unmodifiable(_likes.values.where((l) => l.activityId == activityId));
+
+  @override
+  void setLike(ActivityLike like, {required bool liked}) {
+    final key = _likeKey(like.activityId, like.userId);
+    if (liked) {
+      _likes[key] = like;
+    } else {
+      _likes.remove(key);
+    }
+    _changes.add(null);
+  }
+
+  @override
+  List<ActivityComment> listComments(String activityId) {
+    final list =
+        _comments.values.where((c) => c.activityId == activityId).toList()
+          ..sort((a, b) {
+            final order = a.createdAt.compareTo(b.createdAt);
+            return order == 0 ? a.id.compareTo(b.id) : order;
+          });
+    return List.unmodifiable(list);
+  }
+
+  @override
+  void addComment(ActivityComment comment) {
+    _comments[comment.id] = comment;
+    _changes.add(null);
+  }
+
+  @override
+  void clear() {
+    _likes.clear();
+    _comments.clear();
     _changes.add(null);
   }
 }

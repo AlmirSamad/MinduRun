@@ -81,6 +81,15 @@ class SyncedRoomRepository implements RoomRepository {
   }
 
   @override
+  Room? removeMember(String roomId, String userId) {
+    final room = _cache.removeMember(roomId, userId);
+    if (room != null) {
+      _engine.enqueue(() => _engine.remote.removeMember(roomId, userId));
+    }
+    return room;
+  }
+
+  @override
   Room? joinRoom(String roomId, String userId) {
     final alreadyMember = _cache.getMemberIds(roomId).contains(userId);
     final room = _cache.joinRoom(roomId, userId);
@@ -208,6 +217,14 @@ class SyncedActivityRepository implements ActivityRepository {
     return activity;
   }
 
+  @override
+  bool deleteActivity(String activityId) {
+    final activity = _cache.getActivity(activityId);
+    if (activity == null || !_cache.deleteActivity(activityId)) return false;
+    _engine.enqueue(() => _engine.remote.deleteActivity(activity));
+    return true;
+  }
+
   /// Local only: the server derives moderation status in its report/vote
   /// functions, and the next refresh brings the authoritative value.
   @override
@@ -257,6 +274,37 @@ class SyncedModerationRepository implements ModerationRepository {
   @override
   ActivityReport? resolveReport(String reportId, ReportStatus status) =>
       _cache.resolveReport(reportId, status);
+}
+
+class SyncedSocialRepository implements SocialRepository {
+  SyncedSocialRepository(this._engine);
+  final SyncEngine _engine;
+  InMemorySocialRepository get _cache => _engine.social;
+
+  @override
+  Stream<void> get changes => _cache.changes;
+  @override
+  void dispose() => _cache.dispose();
+  @override
+  List<ActivityLike> listLikes(String activityId) =>
+      _cache.listLikes(activityId);
+  @override
+  List<ActivityComment> listComments(String activityId) =>
+      _cache.listComments(activityId);
+  @override
+  void clear() => _cache.clear();
+
+  @override
+  void setLike(ActivityLike like, {required bool liked}) {
+    _cache.setLike(like, liked: liked);
+    _engine.enqueue(() => _engine.remote.setLike(like, liked: liked));
+  }
+
+  @override
+  void addComment(ActivityComment comment) {
+    _cache.addComment(comment);
+    _engine.enqueue(() => _engine.remote.insertComment(comment));
+  }
 }
 
 /// Uploads selected screenshots to the storage bucket under the user's

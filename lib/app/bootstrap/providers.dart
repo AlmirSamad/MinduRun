@@ -27,6 +27,11 @@ final moderationRepositoryProvider = Provider<ModerationRepository>((ref) {
   ref.onDispose(repository.dispose);
   return repository;
 });
+final socialRepositoryProvider = Provider<SocialRepository>((ref) {
+  final repository = InMemorySocialRepository();
+  ref.onDispose(repository.dispose);
+  return repository;
+});
 final evidenceRepositoryProvider = Provider<EvidenceRepository>(
   (ref) => InMemoryEvidenceRepository(),
 );

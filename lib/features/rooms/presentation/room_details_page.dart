@@ -9,6 +9,7 @@ import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/app_widgets.dart';
 import '../../../core/services/room_rules.dart';
+import '../../session/session_providers.dart';
 import '../room_providers.dart';
 import '../../competitions/presentation/competition_widgets.dart';
 
@@ -19,6 +20,7 @@ class RoomDetailsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final room = ref.watch(roomDetailsProvider(roomId));
+    final currentUserId = ref.watch(currentUserProvider)?.id;
     final members = ref.watch(roomMembersProvider(roomId));
     final owner = room == null
         ? null
@@ -107,6 +109,29 @@ class RoomDetailsPage extends ConsumerWidget {
                                     color: AppColors.gold,
                                     icon: Icons.star_rounded,
                                   )
+                                : RoomRules.canRemove(
+                                    room,
+                                    currentUserId,
+                                    member.id,
+                                  )
+                                ? IconButton(
+                                    key: ValueKey('remove-${member.id}'),
+                                    tooltip: 'Remover da sala',
+                                    icon: const Icon(
+                                      Icons.person_remove_outlined,
+                                    ),
+                                    onPressed: () => _confirmRoomAction(
+                                      context,
+                                      title: 'Remover ${member.displayName}?',
+                                      message: 'A pessoa sai da sala. Corridas e participação em competições já existentes continuam valendo.',
+                                      confirm: 'Remover',
+                                      action: () => ref
+                                          .read(
+                                            roomsControllerProvider.notifier,
+                                          )
+                                          .removeMember(roomId, member.id),
+                                    ),
+                                  )
                                 : null,
                           ),
                         ],
@@ -115,10 +140,64 @@ class RoomDetailsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 28),
                   RoomCompetitionsSection(roomId: roomId),
+                  if (RoomRules.canLeave(room, currentUserId)) ...[
+                    const SizedBox(height: 28),
+                    OutlinedButton.icon(
+                      key: const Key('leave-room'),
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text('Sair da sala'),
+                      onPressed: () => _confirmRoomAction(
+                        context,
+                        title: 'Sair de "${room.name}"?',
+                        message: 'Você deixa de ver a sala. Para voltar, use o código de convite.',
+                        confirm: 'Sair',
+                        action: () {
+                          ref
+                              .read(roomsControllerProvider.notifier)
+                              .leaveRoom(roomId);
+                          context.go(AppRoutes.home);
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
     );
+  }
+}
+
+/// Confirmation for leaving a room or removing a member.
+Future<void> _confirmRoomAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirm,
+  required void Function() action,
+}) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(confirm),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    action();
+  } on StateError catch (error) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(error.message)));
   }
 }
 

@@ -1,5 +1,20 @@
+import '../models/models.dart';
+
 /// Shared validation for room forms and repository creation.
 abstract final class RoomRules {
+  /// Members may leave; the owner stays (the room would have no owner).
+  static bool canLeave(Room room, String? userId) =>
+      userId != null &&
+      room.memberIds.contains(userId) &&
+      room.ownerUserId != userId;
+
+  /// The owner may remove any other member.
+  static bool canRemove(Room room, String? actorId, String targetId) =>
+      actorId != null &&
+      room.ownerUserId == actorId &&
+      targetId != room.ownerUserId &&
+      room.memberIds.contains(targetId);
+
   /// Deep link that opens the installed Android app on the join flow.
   static String inviteLink(String inviteCode) =>
       'mindurun://open/join/${inviteCode.toUpperCase()}';

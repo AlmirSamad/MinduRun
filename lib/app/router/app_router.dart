@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/session/presentation/demo_home_screen.dart';
+import '../../features/session/presentation/profile_page.dart';
 import '../../features/session/presentation/user_selection_page.dart';
 import '../../features/session/session_providers.dart';
 import '../../features/rooms/presentation/rooms_page.dart';
@@ -93,6 +94,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ActivitySubmissionPage(
           competitionId: state.pathParameters['competitionId']!,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        builder: (context, state) => const ProfilePage(),
       ),
       GoRoute(
         path: '/join/:code',

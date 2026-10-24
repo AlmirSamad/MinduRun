@@ -9,6 +9,13 @@
 
 begin;
 
+-- activity_likes / activity_comments exist after migration 004.
+do $$
+begin
+  truncate table public.activity_likes, public.activity_comments;
+exception when undefined_table then null;
+end $$;
+
 truncate table
   public.votes,
   public.reports,
@@ -16,7 +23,8 @@ truncate table
   public.competitions,
   public.room_members,
   public.rooms,
-  public.profiles;
+  public.profiles
+cascade;
 
 -- Anonymous sign-ins only; any real account in the project is kept.
 delete from auth.users where is_anonymous;

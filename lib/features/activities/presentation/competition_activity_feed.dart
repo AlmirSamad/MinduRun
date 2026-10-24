@@ -10,6 +10,7 @@ import '../../competitions/presentation/competition_widgets.dart';
 import '../activity_providers.dart';
 import 'evidence_image.dart';
 import '../../moderation/presentation/moderation_dialogs.dart';
+import '../../social/presentation/activity_social_bar.dart';
 
 class CompetitionActivityFeed extends ConsumerWidget {
   const CompetitionActivityFeed({super.key, required this.competitionId});
@@ -176,6 +177,7 @@ class _ActivityCard extends ConsumerWidget {
                 ],
               ),
               const Divider(height: 20),
+              ActivitySocialBar(activityId: activity.id),
               ActivityModerationActions(activityId: activity.id),
             ],
           ),

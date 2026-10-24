@@ -51,8 +51,49 @@ class ActivityModerationActions extends ConsumerWidget {
             icon: const Icon(Icons.how_to_vote_rounded, size: 18),
             label: const Text('Ver votação'),
           ),
+        if (ref.watch(canDeleteActivityProvider(activityId)))
+          TextButton.icon(
+            key: ValueKey('delete-$activityId'),
+            onPressed: () => _confirmDelete(context, ref),
+            icon: const Icon(Icons.delete_outline_rounded, size: 18),
+            label: const Text('Excluir'),
+          ),
       ],
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir atividade?'),
+        content: const Text(
+          'A corrida sai do feed e do ranking. Use para corrigir um erro e registre de novo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      ref
+          .read(activitiesControllerProvider.notifier)
+          .deleteActivity(activityId);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Atividade excluída.')),
+      );
+    } on StateError catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 }
 

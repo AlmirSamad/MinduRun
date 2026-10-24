@@ -34,6 +34,7 @@ class SupabaseRemoteStore implements RemoteStore {
       _client.from('reports').select(),
       _client.from('votes').select(),
     ]);
+    final social = await _fetchSocial();
     return RemoteSnapshot(
       users: results[0].map(RemoteRows.user).toList(),
       rooms: RemoteRows.rooms(results[1], results[2]),
@@ -41,6 +42,8 @@ class SupabaseRemoteStore implements RemoteStore {
       activities: results[4].map(RemoteRows.activity).toList(),
       reports: results[5].map(RemoteRows.report).toList(),
       votes: results[6].map(RemoteRows.vote).toList(),
+      likes: social.likes,
+      comments: social.comments,
       serverTime: serverNow == null
           ? null
           : DateTime.parse(serverNow).toLocal(),
@@ -120,6 +123,71 @@ class SupabaseRemoteStore implements RemoteStore {
             upsert: true,
           ),
         ),
+  );
+
+  /// Likes/comments come from migration 004; an older database without
+  /// those tables keeps working with an empty social layer.
+  Future<({List<ActivityLike> likes, List<ActivityComment> comments})>
+  _fetchSocial() async {
+    try {
+      final rows = await Future.wait([
+        _client.from('activity_likes').select(),
+        _client.from('activity_comments').select(),
+      ]);
+      return (
+        likes: rows[0].map(RemoteRows.like).toList(),
+        comments: rows[1].map(RemoteRows.comment).toList(),
+      );
+    } on PostgrestException {
+      return (likes: <ActivityLike>[], comments: <ActivityComment>[]);
+    }
+  }
+
+  @override
+  Future<void> deleteActivity(Activity activity) async {
+    await _guard(
+      () => _client.rpc(
+        'delete_activity',
+        params: {'p_activity_id': activity.id},
+      ),
+    );
+    if (activity.evidenceRef.kind == EvidenceKind.remote) {
+      try {
+        await _client.storage.from(bucket).remove([activity.evidenceRef.id]);
+      } catch (_) {
+        // Best effort: an orphan screenshot is harmless (cleanup.sql).
+      }
+    }
+  }
+
+  @override
+  Future<void> removeMember(String roomId, String userId) => _guard(
+    () => _client
+        .from('room_members')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('user_id', userId),
+  );
+
+  @override
+  Future<void> setLike(ActivityLike like, {required bool liked}) => _guard(
+    () => liked
+        // ON CONFLICT DO NOTHING: a double tap needs no UPDATE permission.
+        ? _client
+              .from('activity_likes')
+              .upsert(RemoteRows.likeRow(like), ignoreDuplicates: true)
+        : _client
+              .from('activity_likes')
+              .delete()
+              .eq('activity_id', like.activityId)
+              .eq('user_id', like.userId),
+  );
+
+  @override
+  Future<void> insertComment(ActivityComment comment) => _guard(
+    () => _client
+        .from('activity_comments')
+        .insert(RemoteRows.commentRow(comment)),
   );
 
   @override

@@ -28,6 +28,24 @@ class ActivitySubmissionService {
     return null;
   }
 
+  /// The author may delete an activity (e.g. a typo) while the competition is
+  /// ACTIVE, the activity is PUBLISHED and it never received a report, so a
+  /// deletion can neither dodge moderation nor change a closed result.
+  bool canDelete({
+    required Activity activity,
+    required String? userId,
+    required Competition? competition,
+    required List<ActivityReport> reports,
+    required DateTime now,
+  }) =>
+      userId != null &&
+      activity.userId == userId &&
+      activity.moderationStatus == ActivityModerationStatus.published &&
+      competition != null &&
+      competition.id == activity.competitionId &&
+      competitionState.acceptsSubmissions(competition, now) &&
+      !reports.any((r) => r.activityId == activity.id);
+
   /// The same screenshot (by fingerprint) may back only one activity per
   /// competition, whatever that activity's moderation status.
   String? duplicateEvidenceError({

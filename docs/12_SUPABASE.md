@@ -41,6 +41,17 @@ Regras de domínio, telas e testes são os mesmos nos dois modos.
   competição (bloqueado no app e por índice único no banco).
 - **Resultado final:** quando a competição termina, aparece campeão e pódio
   ("provisório" enquanto houver denúncia em votação).
+- **Experiência de uso:** ritmo preenchido automaticamente; compartilhar
+  convite (mensagem pronta + link `mindurun://open/join/CODIGO`); card
+  "Pendências" (votações abertas e competições para participar); puxar para
+  atualizar com "Atualizado há X"; contagem regressiva; "Como funciona".
+- **Migração 004:** excluir a própria corrida (sem denúncias, competição
+  ativa), sair da sala / dono remover membro, curtidas e comentários, e
+  "Meu perfil" com histórico. Sem a 004 o app abre normalmente, mas essas
+  ações falham ao salvar.
+- **Link de convite:** o WhatsApp não deixa tocar em links `mindurun://`;
+  o código continua sendo o caminho principal. O link funciona onde for
+  clicável (ex.: Telegram, navegador) com o app instalado.
 
 Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
 `lib/app/bootstrap/synced_startup.dart`.
@@ -53,7 +64,8 @@ Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
    em **Run**. (Rodar de novo apaga todos os dados do MinduRun.)
    Depois, cada uma numa nova query e nesta ordem, rode as migrações de
    `supabase/migrations/` (podem ser rodadas de novo sem perder dados):
-   `002_join_and_server_moderation.sql` e `003_duplicates_and_clock.sql`.
+   `002_join_and_server_moderation.sql`, `003_duplicates_and_clock.sql` e
+   `004_social_leave_delete.sql`.
 3. **Authentication → Sign In / Providers**: ative **Allow anonymous sign-ins**.
 4. **Project Settings → API Keys**: copie a *Project URL* e a *Publishable key*
    (ou a *anon public* legada).

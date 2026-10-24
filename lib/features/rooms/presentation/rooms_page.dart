@@ -76,6 +76,12 @@ class RoomsPage extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  IconButton(
+                    key: const Key('open-profile'),
+                    tooltip: 'Meu perfil',
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    onPressed: () => context.push(AppRoutes.profile),
+                  ),
                 ],
               ),
             ),

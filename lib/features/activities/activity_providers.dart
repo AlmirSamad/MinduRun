@@ -138,6 +138,32 @@ class ActivitiesController extends Notifier<List<Activity>> {
     );
     return activity;
   }
+
+  /// Deletes the current user's activity when
+  /// [ActivitySubmissionService.canDelete] allows it.
+  void deleteActivity(String activityId) {
+    final repo = ref.read(activityRepositoryProvider);
+    final activity = repo.getActivity(activityId);
+    if (activity == null ||
+        !ref
+            .read(activitySubmissionServiceProvider)
+            .canDelete(
+              activity: activity,
+              userId: ref.read(currentUserProvider)?.id,
+              competition: ref.read(
+                competitionByIdProvider(activity.competitionId),
+              ),
+              reports: ref
+                  .read(moderationRepositoryProvider)
+                  .listActivityReports(activityId),
+              now: ref.read(clockProvider)(),
+            )) {
+      throw StateError(
+        'Só é possível excluir a própria atividade, sem denúncias, enquanto a competição estiver ativa.',
+      );
+    }
+    repo.deleteActivity(activityId);
+  }
 }
 
 final activitiesControllerProvider =

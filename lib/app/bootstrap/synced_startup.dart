@@ -103,6 +103,9 @@ class _SyncedStartupState extends State<SyncedStartup> {
             SyncedModerationRepository(engine),
           ),
           evidenceRepositoryProvider.overrideWithValue(evidence),
+          socialRepositoryProvider.overrideWithValue(
+            SyncedSocialRepository(engine),
+          ),
           evidencePickerProvider.overrideWithValue(pickCompressedImageBytes),
         ],
       );

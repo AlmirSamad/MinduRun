@@ -194,3 +194,33 @@ class ReportVote {
   final VoteType vote;
   final DateTime createdAt;
 }
+
+/// "Curtida" given by a participant to another participant's activity.
+class ActivityLike {
+  const ActivityLike({
+    required this.activityId,
+    required this.userId,
+    required this.createdAt,
+  });
+
+  final String activityId;
+  final String userId;
+  final DateTime createdAt;
+}
+
+/// Short comment on an activity.
+class ActivityComment {
+  const ActivityComment({
+    required this.id,
+    required this.activityId,
+    required this.userId,
+    required this.text,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String activityId;
+  final String userId;
+  final String text;
+  final DateTime createdAt;
+}

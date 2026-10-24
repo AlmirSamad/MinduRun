@@ -35,6 +35,10 @@ abstract interface class RoomRepository {
   /// Adds [userId] to the room members. Returns the updated room, or null if
   /// the room does not exist.
   Room? joinRoom(String roomId, String userId);
+
+  /// Removes [userId] from the members (leave or owner removal; rules are
+  /// checked by the caller). Returns the updated room, or null.
+  Room? removeMember(String roomId, String userId);
   List<String> getMemberIds(String roomId);
   void clear();
 }
@@ -93,6 +97,9 @@ abstract interface class ActivityRepository {
     ActivityModerationStatus status,
   );
 
+  /// Deletes the author's activity (rules checked by the caller).
+  bool deleteActivity(String activityId);
+
   /// Completes with whether the activity is durably stored (always true for
   /// local storage; in synced mode, once the server accepted it).
   Future<bool> whenSaved(String activityId);
@@ -111,6 +118,21 @@ abstract interface class ModerationRepository {
   void addVote(ReportVote vote);
   List<ReportVote> listReportVotes(String reportId);
   ActivityReport? resolveReport(String reportId, ReportStatus status);
+  void clear();
+}
+
+abstract interface class SocialRepository {
+  /// Notifications for every mutation; readers query the repository again.
+  Stream<void> get changes;
+  void dispose();
+  List<ActivityLike> listLikes(String activityId);
+
+  /// Adds or removes the user's like (rules checked by the caller).
+  void setLike(ActivityLike like, {required bool liked});
+
+  /// Oldest first.
+  List<ActivityComment> listComments(String activityId);
+  void addComment(ActivityComment comment);
   void clear();
 }
 

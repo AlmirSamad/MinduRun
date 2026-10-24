@@ -32,10 +32,11 @@ class SyncEngine {
     required this.competitions,
     required this.activities,
     required this.moderation,
+    InMemorySocialRepository? social,
     this.pollInterval = const Duration(seconds: 20),
     this.debounce = const Duration(milliseconds: 400),
     this.jobTimeout = const Duration(seconds: 45),
-  });
+  }) : social = social ?? InMemorySocialRepository();
 
   final RemoteStore remote;
   final InMemoryUserRepository users;
@@ -43,6 +44,7 @@ class SyncEngine {
   final InMemoryCompetitionRepository competitions;
   final InMemoryActivityRepository activities;
   final InMemoryModerationRepository moderation;
+  final InMemorySocialRepository social;
   final Duration pollInterval;
   final Duration debounce;
 
@@ -195,5 +197,10 @@ class SyncEngine {
     moderation.clear();
     snapshot.reports.forEach(moderation.putReport);
     snapshot.votes.forEach(moderation.putVote);
+    social.clear();
+    for (final like in snapshot.likes) {
+      social.setLike(like, liked: true);
+    }
+    snapshot.comments.forEach(social.addComment);
   }
 }
