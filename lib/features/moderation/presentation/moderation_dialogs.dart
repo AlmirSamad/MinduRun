@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/providers.dart';
+import '../../../app/theme/app_theme.dart';
+import '../../../app/theme/app_widgets.dart';
 import '../../../core/models/models.dart';
 import '../../../core/services/activity_input.dart';
 import '../../../core/services/domain_services.dart';
@@ -31,20 +33,23 @@ class ActivityModerationActions extends ConsumerWidget {
       spacing: 8,
       children: [
         if (ref.watch(canReportActivityProvider(activityId)))
-          TextButton(
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
             onPressed: () => showDialog<void>(
               context: context,
               builder: (_) => ReportActivityDialog(activityId: activityId),
             ),
-            child: const Text('Reportar'),
+            icon: const Icon(Icons.flag_rounded, size: 18),
+            label: const Text('Reportar'),
           ),
         if (reports.isNotEmpty)
-          TextButton(
+          TextButton.icon(
             onPressed: () => showDialog<void>(
               context: context,
               builder: (_) => ReportVotingDialog(reportId: reports.last.id),
             ),
-            child: const Text('Ver votação'),
+            icon: const Icon(Icons.how_to_vote_rounded, size: 18),
+            label: const Text('Ver votação'),
           ),
       ],
     );
@@ -85,6 +90,7 @@ class _ReportActivityDialogState extends ConsumerState<ReportActivityDialog> {
             children: [
               const Text(
                 'A atividade entrará em revisão pelos participantes elegíveis. Os pontos continuam contando até a decisão da votação.',
+                style: TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<ReportReason>(
@@ -134,6 +140,10 @@ class _ReportActivityDialogState extends ConsumerState<ReportActivityDialog> {
         child: const Text('Cancelar'),
       ),
       FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.error,
+          foregroundColor: AppColors.ink,
+        ),
         onPressed: () {
           if (_submitted) return;
           if (!_form.currentState!.validate()) return;
@@ -196,6 +206,13 @@ class _ReportVotingDialogState extends ConsumerState<ReportVotingDialog> {
     final votes = ref.watch(votesForReportProvider(widget.reportId));
     final user = ref.watch(currentUserProvider);
     final ownVotes = votes.where((v) => v.voterUserId == user?.id);
+    final authorName = activity == null
+        ? ''
+        : ref
+                  .watch(userRepositoryProvider)
+                  .getUser(activity.userId)
+                  ?.displayName ??
+              activity.userId;
     return AlertDialog(
       title: const Text('Votação da atividade'),
       content: SizedBox(
@@ -207,75 +224,198 @@ class _ReportVotingDialogState extends ConsumerState<ReportVotingDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      ref
-                              .watch(userRepositoryProvider)
-                              .getUser(activity.userId)
-                              ?.displayName ??
-                          activity.userId,
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Row(
+                      children: [
+                        UserAvatar(name: authorName),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                authorName,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              Text(
+                                '${activity.score} pontos originais',
+                                style: AppFonts.numbers(
+                                  size: 16,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(ActivityInput.formatDistance(activity.distanceKm)),
-                    Text(
-                      'Duração: ${ActivityInput.formatDuration(activity.durationSeconds)}',
-                    ),
-                    Text(
-                      'Ritmo: ${ActivityInput.formatPace(activity.averagePaceSecondsPerKm)}',
-                    ),
-                    Text('${activity.score} pontos originais'),
                     const SizedBox(height: 12),
-                    Text('Motivo: ${reportReasonLabel(report.reason)}'),
-                    if (report.details != null) Text(report.details!),
+                    Row(
+                      children: [
+                        StatTile(
+                          icon: Icons.route_rounded,
+                          value: ActivityInput.formatDistance(
+                            activity.distanceKm,
+                          ),
+                          caption: 'Distância',
+                        ),
+                        const SizedBox(width: 8),
+                        StatTile(
+                          icon: Icons.timer_rounded,
+                          value: ActivityInput.formatDuration(
+                            activity.durationSeconds,
+                          ),
+                          caption: 'Duração',
+                        ),
+                        const SizedBox(width: 8),
+                        StatTile(
+                          icon: Icons.speed_rounded,
+                          value: ActivityInput.formatPace(
+                            activity.averagePaceSecondsPerKm,
+                          ),
+                          caption: 'Ritmo',
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 12),
-                    SizedBox(
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.controlRadius,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.flag_rounded,
+                                size: 16,
+                                color: AppColors.warning,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Motivo: ${reportReasonLabel(report.reason)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (report.details != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                report.details!,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
                       height: 240,
+                      decoration: BoxDecoration(
+                        color: AppColors.ink,
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.controlRadius,
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
                       child: EvidenceImage(evidence: activity.evidenceRef),
                     ),
-                    TextButton(
+                    TextButton.icon(
                       onPressed: () =>
                           showActivityEvidence(context, activity.evidenceRef),
-                      child: const Text('Ver evidência'),
+                      icon: const Icon(Icons.image_rounded, size: 18),
+                      label: const Text('Ver evidência'),
                     ),
-                    const SizedBox(height: 12),
-                    if (report.status == ReportStatus.open)
-                      Text(
-                        '${votes.length} de ${ref.watch(minimumVotesForReportProvider(report.id))} votos necessários',
-                      )
-                    else
-                      Text(
-                        report.status == ReportStatus.upheld
-                            ? 'Atividade invalidada pela votação.'
-                            : 'A atividade foi mantida.',
-                      ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          report.status == ReportStatus.open
+                              ? Icons.how_to_vote_rounded
+                              : report.status == ReportStatus.upheld
+                              ? Icons.cancel_rounded
+                              : Icons.check_circle_rounded,
+                          size: 18,
+                          color: report.status == ReportStatus.open
+                              ? AppColors.warning
+                              : report.status == ReportStatus.upheld
+                              ? AppColors.error
+                              : AppColors.success,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: report.status == ReportStatus.open
+                              ? Text(
+                                  '${votes.length} de ${ref.watch(minimumVotesForReportProvider(report.id))} votos necessários',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                )
+                              : Text(
+                                  report.status == ReportStatus.upheld
+                                      ? 'Atividade invalidada pela votação.'
+                                      : 'A atividade foi mantida.',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ],
+                    ),
                     if (ownVotes.isNotEmpty) ...[
+                      const SizedBox(height: 8),
                       const Text('Seu voto foi registrado.'),
                       Text(
                         ownVotes.first.vote == VoteType.invalid
                             ? 'Seu voto: a evidência é inconsistente.'
                             : 'Seu voto: a atividade parece válida.',
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                     ],
                     if (user?.id == activity.userId)
-                      const Text(
-                        'O autor pode acompanhar a votação, mas não pode votar.',
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Text(
+                          'O autor pode acompanhar a votação, mas não pode votar.',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
                       ),
                     if (ref.watch(canVoteReportProvider(report.id))) ...[
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: () => _vote(VoteType.invalid),
-                        child: const Text('A evidência é inconsistente'),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: () => _vote(VoteType.valid),
+                        icon: const Icon(Icons.thumb_up_rounded),
+                        label: const Text('A atividade parece válida'),
                       ),
                       const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: () => _vote(VoteType.valid),
-                        child: const Text('A atividade parece válida'),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: AppColors.ink,
+                        ),
+                        onPressed: () => _vote(VoteType.invalid),
+                        icon: const Icon(Icons.thumb_down_rounded),
+                        label: const Text('A evidência é inconsistente'),
                       ),
                     ],
                     if (_error != null)
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          _error!,
+                          style: const TextStyle(color: AppColors.error),
                         ),
                       ),
                   ],

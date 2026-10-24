@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_theme.dart';
+import '../../../app/theme/app_widgets.dart';
 import '../../../core/models/models.dart';
 import '../../../core/services/activity_input.dart';
 import '../../competitions/competition_providers.dart';
@@ -168,7 +170,7 @@ class _ActivitySubmissionPageState
         title: const Text('Registrar atividade'),
         leading: IconButton(
           tooltip: 'Voltar',
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () =>
               context.go(AppRoutes.competition(widget.competitionId)),
         ),
@@ -189,34 +191,69 @@ class _ActivitySubmissionPageState
                     competition!.name,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const Text(
                     'Registre uma corrida feita em outro aplicativo. Selecione a screenshot e digite os dados manualmente.',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: _picking || _published ? null : _pickEvidence,
-                    icon: const Icon(Icons.image_outlined),
-                    label: Text(
-                      _picking
-                          ? 'Selecionando imagem…'
-                          : 'Selecionar screenshot',
+                  DashedBorder(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    fill: AppColors.primary.withValues(alpha: 0.08),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: _evidence == null ? 32 : 16,
+                      ),
+                      child: Column(
+                        children: [
+                          if (_evidence == null) ...[
+                            const Icon(
+                              Icons.add_photo_alternate_rounded,
+                              size: 40,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Print da corrida (Strava, relógio…)',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 12),
+                          ] else ...[
+                            SizedBox(
+                              height: 160,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.controlRadius,
+                                ),
+                                child: EvidenceImage(evidence: _evidence!),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                          OutlinedButton(
+                            onPressed: _picking || _published
+                                ? null
+                                : _pickEvidence,
+                            child: Text(
+                              _picking
+                                  ? 'Selecionando imagem…'
+                                  : 'Selecionar screenshot',
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  if (_evidence != null) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 180,
-                      child: EvidenceImage(evidence: _evidence!),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   TextFormField(
                     key: const Key('activity-distance'),
                     controller: _distance,
                     decoration: const InputDecoration(
                       labelText: 'Distância (km)',
                       hintText: '5,23',
+                      prefixIcon: Icon(Icons.route_rounded),
                       errorMaxLines: 3,
                     ),
                     keyboardType: const TextInputType.numberWithOptions(
@@ -232,6 +269,7 @@ class _ActivitySubmissionPageState
                     decoration: const InputDecoration(
                       labelText: 'Duração (MM:SS ou HH:MM:SS)',
                       hintText: '31:45',
+                      prefixIcon: Icon(Icons.timer_rounded),
                       errorMaxLines: 3,
                     ),
                     keyboardType: TextInputType.datetime,
@@ -245,6 +283,7 @@ class _ActivitySubmissionPageState
                     decoration: const InputDecoration(
                       labelText: 'Ritmo médio (MM:SS/km)',
                       hintText: '06:04',
+                      prefixIcon: Icon(Icons.speed_rounded),
                       errorMaxLines: 3,
                     ),
                     keyboardType: TextInputType.datetime,
@@ -252,57 +291,154 @@ class _ActivitySubmissionPageState
                     onChanged: (_) => _changed(),
                   ),
                   const SizedBox(height: 16),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  OutlinedButton(
+                  if (_error != null) ...[
+                    _ErrorBox(message: _error!),
+                    const SizedBox(height: 12),
+                  ],
+                  OutlinedButton.icon(
                     onPressed: _picking || _published ? null : _validate,
-                    child: const Text('Validar e ver pontuação'),
+                    icon: const Icon(Icons.military_tech_rounded),
+                    label: const Text('Validar e ver pontuação'),
                   ),
-                  if (_preview case final preview?)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Prévia da atividade'),
-                            Text(
-                              ActivityInput.formatDistance(preview.distanceKm),
-                            ),
-                            Text(
-                              'Duração: ${ActivityInput.formatDuration(preview.durationSeconds)}',
-                            ),
-                            Text(
-                              'Ritmo: ${ActivityInput.formatPace(preview.averagePaceSecondsPerKm)}',
-                            ),
-                            Text(
-                              '${preview.score} pontos',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  FilledButton(
+                  if (_preview case final preview?) ...[
+                    const SizedBox(height: 16),
+                    _PreviewCard(preview: preview),
+                  ],
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    style: AppTheme.energyButton(height: 56, fontSize: 18),
                     onPressed: _preview == null || _picking || _published
                         ? null
                         : _publish,
-                    child: Text(
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(
                       _published ? 'Enviando…' : 'Publicar atividade',
                     ),
                   ),
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// Validation or submission problem, shown above the actions.
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: AppColors.error.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+      border: Border.all(
+        color: AppColors.error.withValues(alpha: 0.3),
+        width: 2,
+      ),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.warning_rounded, color: AppColors.error, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(message, style: const TextStyle(color: AppColors.error)),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Calculated points with a count-up animation, before publishing.
+class _PreviewCard extends StatelessWidget {
+  const _PreviewCard({required this.preview});
+  final ActivityPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.95, end: 1),
+      duration: const Duration(milliseconds: 250),
+      builder: (context, scale, child) => Opacity(
+        opacity: ((scale - 0.95) / 0.05).clamp(0, 1),
+        child: Transform.scale(scale: scale, child: child),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(AppTheme.heroRadius),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle_rounded,
+                  size: 16,
+                  color: AppColors.success,
+                ),
+                SizedBox(width: 6),
+                Text(
+                  'PRÉVIA DA ATIVIDADE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: AppColors.success,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: preview.score),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (context, value, _) => Text(
+                '$value pontos',
+                style: AppFonts.numbers(size: 56, color: AppColors.accent),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${ActivityInput.formatDistance(preview.distanceKm)} × 100',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                StatTile(
+                  icon: Icons.route_rounded,
+                  value: ActivityInput.formatDistance(preview.distanceKm),
+                  caption: 'Distância',
+                ),
+                const SizedBox(width: 8),
+                StatTile(
+                  icon: Icons.timer_rounded,
+                  value: ActivityInput.formatDuration(preview.durationSeconds),
+                  caption: 'Duração',
+                ),
+                const SizedBox(width: 8),
+                StatTile(
+                  icon: Icons.speed_rounded,
+                  value: ActivityInput.formatPace(
+                    preview.averagePaceSecondsPerKm,
+                  ),
+                  caption: 'Ritmo',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

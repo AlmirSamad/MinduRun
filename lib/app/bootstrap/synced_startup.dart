@@ -14,6 +14,7 @@ import '../../features/activities/evidence_picker.dart';
 import '../../features/session/session_providers.dart';
 import '../app.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 import 'app_config.dart';
 import 'providers.dart';
 
@@ -133,7 +134,7 @@ class _SyncedStartupState extends State<SyncedStartup> {
     }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.dark(),
       home: Scaffold(
         body: Center(
           child: Padding(
@@ -141,13 +142,14 @@ class _SyncedStartupState extends State<SyncedStartup> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _failed
-                      ? Icons.wifi_off_rounded
-                      : Icons.directions_run_rounded,
-                  size: 56,
-                  color: AppTheme.seed,
-                ),
+                if (_failed)
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    size: 56,
+                    color: AppColors.error,
+                  )
+                else
+                  const MinduLogo(stacked: true, height: 72),
                 const SizedBox(height: 16),
                 Text(
                   _failed

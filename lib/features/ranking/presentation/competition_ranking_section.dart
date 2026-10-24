@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/providers.dart';
+import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/app_widgets.dart';
 import '../../../core/services/activity_input.dart';
 import '../../session/session_providers.dart';
 import '../ranking_providers.dart';
 
-const _medalColors = {
-  1: Color(0xFFF5B301),
-  2: Color(0xFF9EA7AD),
-  3: Color(0xFFCD7F32),
+const medalColors = {
+  1: AppColors.gold,
+  2: AppColors.silver,
+  3: AppColors.bronze,
 };
 
 class CompetitionRankingSection extends ConsumerWidget {
@@ -28,135 +29,134 @@ class CompetitionRankingSection extends ConsumerWidget {
       key: ValueKey('ranking-$competitionId'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionTitle('Ranking', icon: Icons.leaderboard_rounded),
+        const SectionTitle('Ranking', icon: Icons.emoji_events_rounded),
         if (entries.isEmpty)
-          const Text('Sem participantes nesta competição.')
+          const EmptyState(
+            icon: Icons.emoji_events_rounded,
+            message: 'Sem participantes nesta competição.',
+          )
         else if (noScore) ...[
-          const Text('Ainda não há pontuação nesta competição.'),
-          const SizedBox(height: 8),
+          const Text(
+            'Ainda não há pontuação nesta competição.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 10),
         ],
         for (final entry in entries)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Card(
-              key: ValueKey('ranking-entry-$competitionId-${entry.userId}'),
-              color: entry.userId == user?.id
-                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.6)
-                  : null,
-              shape: entry.userId == user?.id
-                  ? RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(
-                        color: theme.colorScheme.primary,
-                        width: 1.5,
-                      ),
-                    )
-                  : null,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                child: Row(
-                  children: [
-                    _PositionBadge(
-                      position: entry.position,
-                      medal: noScore ? null : _medalColors[entry.position],
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            users.getUser(entry.userId)?.displayName ??
-                                entry.userId,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleMedium,
+            child: Builder(
+              builder: (context) {
+                final isMe = entry.userId == user?.id;
+                final name =
+                    users.getUser(entry.userId)?.displayName ?? entry.userId;
+                final medal = noScore ? null : medalColors[entry.position];
+                return Card(
+                  key: ValueKey('ranking-entry-$competitionId-${entry.userId}'),
+                  color: isMe
+                      ? Color.alphaBlend(
+                          AppColors.accent.withValues(alpha: 0.08),
+                          AppColors.surface,
+                        )
+                      : null,
+                  shape: isMe
+                      ? RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radius),
+                          side: const BorderSide(
+                            color: AppColors.accent,
+                            width: 2,
                           ),
-                          const SizedBox(height: 2),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
+                        )
+                      : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 30,
+                          child: Text(
+                            '${entry.position}º',
+                            style: AppFonts.numbers(
+                              color: medal ?? AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          decoration: medal == null
+                              ? null
+                              : BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: medal, width: 2),
+                                ),
+                          padding: const EdgeInsets.all(2),
+                          child: UserAvatar(name: name, radius: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                ActivityInput.formatDistance(
-                                  entry.acceptedDistanceKm,
-                                ),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                                name,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium,
                               ),
-                              if (entry.userId == user?.id)
-                                StatusPill(
-                                  label: 'Você',
-                                  color: theme.colorScheme.primary,
-                                ),
-                              if (entry.hasUnderReview)
-                                const StatusPill(
-                                  label: 'Em revisão',
-                                  color: Color(0xFFE65100),
-                                  icon: Icons.hourglass_top_rounded,
-                                ),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    ActivityInput.formatDistance(
+                                      entry.acceptedDistanceKm,
+                                    ),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  if (isMe)
+                                    const StatusPill(
+                                      label: 'Você',
+                                      color: AppColors.accent,
+                                    ),
+                                  if (entry.hasUnderReview)
+                                    const StatusPill(
+                                      label: 'Em revisão',
+                                      color: AppColors.warning,
+                                      icon: Icons.hourglass_top_rounded,
+                                    ),
+                                ],
+                              ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${entry.score} pontos',
+                              style: AppFonts.numbers(
+                                color: isMe
+                                    ? AppColors.accent
+                                    : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${entry.score} pontos',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
       ],
-    );
-  }
-}
-
-class _PositionBadge extends StatelessWidget {
-  const _PositionBadge({required this.position, required this.medal});
-  final int position;
-  final Color? medal;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = medal;
-    return Container(
-      width: 40,
-      height: 40,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color ?? theme.colorScheme.surfaceContainerHigh,
-        boxShadow: color == null
-            ? null
-            : [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.4),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-      ),
-      child: Text(
-        '$positionº',
-        style: theme.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: color == null
-              ? theme.colorScheme.onSurfaceVariant
-              : Colors.white,
-        ),
-      ),
     );
   }
 }

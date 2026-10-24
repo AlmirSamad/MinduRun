@@ -21,10 +21,10 @@ class UserSelectionPage extends ConsumerWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: AppTheme.heroGradient,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+          HeroCard(
+            padding: EdgeInsets.zero,
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(32),
             ),
             child: SafeArea(
               bottom: false,
@@ -34,37 +34,15 @@ class UserSelectionPage extends ConsumerWidget {
                   children: [
                     const Align(
                       alignment: Alignment.centerRight,
-                      child: IconTheme(
-                        data: IconThemeData(color: Colors.white),
-                        child: DemoMenu(),
-                      ),
+                      child: DemoMenu(),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.directions_run_rounded,
-                        size: 52,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'MinduRun',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
+                    const MinduLogo(stacked: true, height: 96),
+                    const SizedBox(height: 14),
                     Text(
                       'Corra com seus amigos. Compita. Valide.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -74,12 +52,12 @@ class UserSelectionPage extends ConsumerWidget {
           ),
           if (ref.watch(appModeProvider) == AppMode.synced)
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 28, 20, 24),
+              padding: EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: _NameForm(),
             )
           else
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -114,10 +92,10 @@ class UserSelectionPage extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleMedium,
                           ),
-                          trailing: Icon(
+                          trailing: const Icon(
                             Icons.arrow_forward_ios_rounded,
                             size: 16,
-                            color: theme.colorScheme.primary,
+                            color: AppColors.primary,
                           ),
                           onTap: () => ref
                               .read(sessionControllerProvider.notifier)
