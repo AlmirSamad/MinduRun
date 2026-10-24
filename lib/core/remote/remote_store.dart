@@ -21,22 +21,39 @@ class RemoteSnapshot {
   final List<ReportVote> votes;
 }
 
+/// The server refused a write because a rule failed (e.g. the report was
+/// already closed). [message] is user-facing Portuguese text.
+class RemoteRejected implements Exception {
+  const RemoteRejected(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// Remote backend contract. The Supabase implementation lives in
 /// `supabase_remote_store.dart`; tests use a fake.
+///
+/// Moderation status is never written directly: [createReport] and
+/// [castVote] run server functions that apply the moderation rules.
 abstract interface class RemoteStore {
   Future<RemoteSnapshot> fetchAll();
   Future<void> upsertProfile(User user);
   Future<void> insertRoom(Room room);
   Future<void> insertMember(String roomId, String userId);
   Future<void> insertCompetition(Competition competition);
+
+  /// Adds the signed-in user to the competition participants.
+  Future<void> joinCompetition(String competitionId);
   Future<void> insertActivity(Activity activity);
-  Future<void> updateActivityStatus(
-    String activityId,
-    ActivityModerationStatus status,
-  );
-  Future<void> insertReport(ActivityReport report);
-  Future<void> updateReportStatus(String reportId, ReportStatus status);
-  Future<void> insertVote(ReportVote vote);
+
+  /// Opens the report and puts the activity under review.
+  Future<void> createReport(ActivityReport report);
+
+  /// Records the vote and resolves the report when the minimum is reached.
+  Future<void> castVote(ReportVote vote);
+
+  /// Uploads (or overwrites) an evidence object.
   Future<void> uploadEvidence(String path, Uint8List bytes);
 
   /// Public URL of an evidence object.

@@ -25,6 +25,14 @@ Regras de domínio, telas e testes são os mesmos nos dois modos.
 - **Evidências:** o print é escolhido na galeria, reduzido/comprimido
   (máx. 1440 px de largura, JPEG 75%) e enviado ao bucket `evidence` antes da
   atividade que o referencia.
+- **Publicar atividade:** o botão mostra "Enviando…" e só confirma
+  "Atividade publicada" depois que o servidor aceitou o print e a corrida. Se
+  falhar, o formulário continua preenchido para tentar de novo.
+- **Regras no servidor:** entrar numa competição (`join_competition`),
+  denunciar (`create_report`) e votar (`cast_vote`) são funções no banco que
+  repetem as regras do app e apuram a votação de forma atômica. O servidor
+  também só aceita corrida de participante, dentro do período, pelo relógio
+  do servidor. Nenhum celular altera status de moderação diretamente.
 
 Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
 `lib/app/bootstrap/synced_startup.dart`.
@@ -35,6 +43,8 @@ Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
    (São Paulo)*).
 2. **SQL Editor → New query**: cole o conteúdo de `supabase/schema.sql` e clique
    em **Run**. (Rodar de novo apaga todos os dados do MinduRun.)
+   Depois, numa nova query, rode `supabase/migrations/002_join_and_server_moderation.sql`
+   (pode ser rodado de novo sem perder dados).
 3. **Authentication → Sign In / Providers**: ative **Allow anonymous sign-ins**.
 4. **Project Settings → API Keys**: copie a *Project URL* e a *Publishable key*
    (ou a *anon public* legada).
@@ -59,10 +69,10 @@ Gere sempre na mesma máquina (o APK é assinado com a chave de debug dela).
 
 1. Todos instalam o APK e digitam o nome.
 2. O organizador cria a sala e compartilha o código de convite.
-3. **Todos entram na sala antes de criar a competição.** Os participantes são
-   uma foto dos membros no momento da criação; quem entrar depois não participa
-   daquela competição.
-4. O dono da sala cria a competição.
+3. O dono da sala cria a competição. Quem já está na sala vira participante
+   automaticamente.
+4. Quem entrar na sala depois abre a competição e toca em **Participar da
+   competição** (possível enquanto ela estiver agendada ou ativa).
 5. Corridas, prints, denúncias e votos aparecem nos outros celulares em poucos
    segundos.
 
@@ -72,7 +82,8 @@ Gere sempre na mesma máquina (o APK é assinado com a chave de debug dela).
   entrar de novo com outro nome.
 - Prints ficam num bucket público (qualquer pessoa com o link vê). Apague o
   projeto ou os dados após o teste.
-- A resolução de votação é feita no celular de quem dá o voto decisivo; o banco
-  impede votos duplicados e votos em denúncias já encerradas.
+- As regras de moderação existem em dois lugares: `ModerationService` (Dart,
+  para resposta imediata) e as funções da migração 002 (autoridade final).
+  Ao mudar uma regra, mude os dois.
 - Login anônimo do Supabase tem limite por IP (padrão 30/h): muitos celulares
   na mesma rede Wi‑Fi instalando ao mesmo tempo podem precisar esperar.

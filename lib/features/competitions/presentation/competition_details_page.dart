@@ -122,6 +122,33 @@ class CompetitionDetailsPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 24),
                 ],
+                if (ref.watch(canJoinCompetitionProvider(competitionId))) ...[
+                  FilledButton.icon(
+                    key: const Key('join-competition'),
+                    onPressed: () {
+                      final messenger = ScaffoldMessenger.of(context);
+                      try {
+                        ref
+                            .read(competitionsControllerProvider.notifier)
+                            .joinCompetition(competitionId);
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Você agora participa desta competição.',
+                            ),
+                          ),
+                        );
+                      } on StateError catch (error) {
+                        messenger.showSnackBar(
+                          SnackBar(content: Text(error.message)),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.how_to_reg_rounded),
+                    label: const Text('Participar da competição'),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 CompetitionRankingSection(competitionId: competitionId),
                 const SizedBox(height: 24),
                 Column(

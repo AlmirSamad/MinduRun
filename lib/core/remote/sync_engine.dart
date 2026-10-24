@@ -20,6 +20,7 @@ class SyncEngine {
     required this.moderation,
     this.pollInterval = const Duration(seconds: 20),
     this.debounce = const Duration(milliseconds: 400),
+    this.jobTimeout = const Duration(seconds: 45),
   });
 
   final RemoteStore remote;
@@ -30,6 +31,9 @@ class SyncEngine {
   final InMemoryModerationRepository moderation;
   final Duration pollInterval;
   final Duration debounce;
+
+  /// A write that takes longer is treated as failed (bad mobile signal).
+  final Duration jobTimeout;
 
   /// Called after the cache was rebuilt from the remote store.
   void Function()? onRefreshed;
@@ -50,23 +54,34 @@ class SyncEngine {
   /// True while local writes are waiting to reach the remote store.
   bool get hasPendingWrites => _pending > 0;
 
-  /// Pushes a local write. Jobs run one at a time, in call order.
-  void enqueue(Future<void> Function() job) {
+  /// Pushes a local write. Jobs run one at a time, in call order. The
+  /// returned future completes with whether the server accepted it (it never
+  /// throws). A failed job reports a message and reloads the cache from the
+  /// server, unless [silent] (used for best-effort prefetch uploads).
+  Future<bool> enqueue(Future<void> Function() job, {bool silent = false}) {
     _pending++;
+    final result = Completer<bool>();
     _queue = _queue.then((_) async {
       try {
-        await job();
-      } catch (_) {
-        _messages.add(
-          'Não foi possível salvar no servidor. Verifique a internet; '
-          'os dados serão recarregados.',
-        );
-        _refreshWanted = true;
+        await job().timeout(jobTimeout);
+        result.complete(true);
+      } catch (error) {
+        result.complete(false);
+        if (!silent) {
+          _messages.add(
+            error is RemoteRejected
+                ? '${error.message} Os dados foram recarregados.'
+                : 'Não foi possível salvar no servidor. Verifique a internet; '
+                      'os dados serão recarregados.',
+          );
+          _refreshWanted = true;
+        }
       } finally {
         _pending--;
         if (_pending == 0 && _refreshWanted) unawaited(refresh());
       }
     });
+    return result.future;
   }
 
   /// Completes when every queued write finished (successfully or not).

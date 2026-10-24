@@ -176,6 +176,21 @@ class InMemoryCompetitionRepository implements CompetitionRepository {
   Competition? getCompetition(String id) => _competitions[id];
 
   @override
+  Competition? joinCompetition(String competitionId, String userId) {
+    final competition = _competitions[competitionId];
+    if (competition == null) return null;
+    if (competition.participantIds.contains(userId)) return competition;
+    final updated = competition.copyWith(
+      participantIds: List.unmodifiable([
+        ...competition.participantIds,
+        userId,
+      ]),
+    );
+    _competitions[competitionId] = updated;
+    return updated;
+  }
+
+  @override
   void createCompetition(Competition competition) =>
       _competitions[competition.id] = competition;
 
@@ -206,6 +221,10 @@ class InMemoryActivityRepository implements ActivityRepository {
 
   @override
   List<Activity> listActivities() => List.unmodifiable(_activities.values);
+
+  @override
+  Future<bool> whenSaved(String activityId) =>
+      Future.value(_activities.containsKey(activityId));
 
   @override
   Activity createLocalActivity({

@@ -16,12 +16,22 @@ class FakeRemoteStore implements RemoteStore {
   Completer<void>? gate;
   bool failWrites = false;
   bool failFetch = false;
+
+  /// Calls (by prefix, e.g. `upload`) that fail the next N times.
+  final failNext = <String, int>{};
+  String? rejectWith;
   void Function()? onChange;
 
   Future<void> _write(String call) async {
     calls.add(call);
     await gate?.future;
     if (failWrites) throw Exception('offline');
+    final prefix = call.split(':').first;
+    if ((failNext[prefix] ?? 0) > 0) {
+      failNext[prefix] = failNext[prefix]! - 1;
+      throw Exception('offline');
+    }
+    if (rejectWith != null) throw RemoteRejected(rejectWith!);
   }
 
   @override
@@ -44,18 +54,13 @@ class FakeRemoteStore implements RemoteStore {
   Future<void> insertActivity(Activity activity) =>
       _write('activity:${activity.id}');
   @override
-  Future<void> updateActivityStatus(
-    String activityId,
-    ActivityModerationStatus status,
-  ) => _write('activity-status:$activityId:${status.name}');
+  Future<void> joinCompetition(String competitionId) =>
+      _write('join:$competitionId');
   @override
-  Future<void> insertReport(ActivityReport report) =>
+  Future<void> createReport(ActivityReport report) =>
       _write('report:${report.id}');
   @override
-  Future<void> updateReportStatus(String reportId, ReportStatus status) =>
-      _write('report-status:$reportId:${status.name}');
-  @override
-  Future<void> insertVote(ReportVote vote) => _write('vote:${vote.id}');
+  Future<void> castVote(ReportVote vote) => _write('vote:${vote.id}');
   @override
   Future<void> uploadEvidence(String path, Uint8List bytes) =>
       _write('upload:$path');
@@ -229,5 +234,158 @@ void main() {
     remote.onChange!();
     await Future<void>.delayed(const Duration(milliseconds: 10));
     expect(engine.users.getUser('u9'), isNotNull);
+  });
+
+  Activity submit(SyncedActivityRepository repo, EvidenceRef ref) =>
+      repo.createLocalActivity(
+        competitionId: 'c1',
+        userId: 'u1',
+        distanceKm: 5,
+        durationSeconds: 1800,
+        averagePaceSecondsPerKm: 360,
+        evidenceRef: ref,
+        score: 500,
+        submittedAt: DateTime(2026, 10, 30),
+      );
+
+  test('activity is confirmed only after the server accepts it', () async {
+    final evidence = SyncedEvidenceRepository(engine, userId: 'u1');
+    final activities = SyncedActivityRepository(engine, evidence: evidence);
+    final ref = evidence.storeBytes(Uint8List.fromList([0xff, 0xd8, 0xff]));
+    final activity = submit(activities, ref);
+    expect(await activities.whenSaved(activity.id), isTrue);
+  });
+
+  test(
+    'a failed prefetch upload is retried silently by the activity',
+    () async {
+      final messages = <String>[];
+      engine.messages.listen(messages.add);
+      remote.failNext['upload'] = 1;
+      final evidence = SyncedEvidenceRepository(engine, userId: 'u1');
+      final activities = SyncedActivityRepository(engine, evidence: evidence);
+      final ref = evidence.storeBytes(Uint8List.fromList([0xff, 0xd8, 0xff]));
+      final activity = submit(activities, ref);
+      expect(await activities.whenSaved(activity.id), isTrue);
+      expect(remote.calls, [
+        'upload:${ref.id}',
+        'upload:${ref.id}',
+        'activity:${activity.id}',
+      ]);
+      expect(messages, isEmpty);
+    },
+  );
+
+  test('a failed activity is reported and removed by the reload', () async {
+    final messages = <String>[];
+    engine.messages.listen(messages.add);
+    final evidence = SyncedEvidenceRepository(engine, userId: 'u1');
+    final activities = SyncedActivityRepository(engine, evidence: evidence);
+    final ref = evidence.storeBytes(Uint8List.fromList([0xff, 0xd8, 0xff]));
+    remote.failNext['activity'] = 1;
+    final activity = submit(activities, ref);
+    expect(await activities.whenSaved(activity.id), isFalse);
+    await pumpEventQueue();
+    expect(messages.single, contains('Não foi possível salvar'));
+    expect(activities.getActivity(activity.id), isNull);
+  });
+
+  test('server rule rejections are shown with their own message', () async {
+    final messages = <String>[];
+    engine.messages.listen(messages.add);
+    remote.rejectWith = 'Esta denúncia não está aberta.';
+    engine.moderation.putReport(
+      ActivityReport(
+        id: 'r1',
+        activityId: 'a1',
+        reporterUserId: 'u3',
+        reason: ReportReason.other,
+        status: ReportStatus.open,
+        createdAt: DateTime(2026, 10, 30),
+      ),
+    );
+    SyncedModerationRepository(engine).addVote(
+      ReportVote(
+        id: 'v1',
+        reportId: 'r1',
+        voterUserId: 'u2',
+        vote: VoteType.invalid,
+        createdAt: DateTime(2026, 10, 30),
+      ),
+    );
+    await engine.flush();
+    await pumpEventQueue();
+    expect(messages.single, startsWith('Esta denúncia não está aberta.'));
+  });
+
+  test('moderation goes through server functions only', () async {
+    engine.activities.createActivity(
+      Activity(
+        id: 'a1',
+        competitionId: 'c1',
+        userId: 'u1',
+        distanceKm: 5,
+        durationSeconds: 1800,
+        averagePaceSecondsPerKm: 360,
+        evidenceRef: const EvidenceRef(
+          id: 'u1/e.jpg',
+          kind: EvidenceKind.remote,
+        ),
+        score: 500,
+        moderationStatus: ActivityModerationStatus.published,
+        submittedAt: DateTime(2026, 10, 30),
+      ),
+    );
+    final moderation = SyncedModerationRepository(engine);
+    final activities = SyncedActivityRepository(engine);
+    final report = ActivityReport(
+      id: 'r1',
+      activityId: 'a1',
+      reporterUserId: 'u2',
+      reason: ReportReason.other,
+      status: ReportStatus.open,
+      createdAt: DateTime(2026, 10, 30),
+    );
+    moderation.createReport(report);
+    activities.updateModerationStatus(
+      'a1',
+      ActivityModerationStatus.underReview,
+    );
+    moderation.addVote(
+      ReportVote(
+        id: 'v1',
+        reportId: 'r1',
+        voterUserId: 'u3',
+        vote: VoteType.invalid,
+        createdAt: DateTime(2026, 10, 30),
+      ),
+    );
+    moderation.resolveReport('r1', ReportStatus.upheld);
+    activities.updateModerationStatus('a1', ActivityModerationStatus.rejected);
+    await engine.flush();
+    expect(remote.calls, ['report:r1', 'vote:v1']);
+    expect(
+      activities.getActivity('a1')!.moderationStatus,
+      ActivityModerationStatus.rejected,
+    );
+  });
+
+  test('joining a competition is optimistic and calls the server', () async {
+    final competitions = SyncedCompetitionRepository(engine);
+    competitions.createCompetition(
+      Competition(
+        id: 'c1',
+        roomId: 'r1',
+        name: 'Desafio',
+        startsAt: DateTime(2026, 10, 30),
+        endsAt: DateTime(2026, 11, 6),
+        status: CompetitionStatus.scheduled,
+        participantIds: const ['u1'],
+      ),
+    );
+    competitions.joinCompetition('c1', 'u2');
+    expect(competitions.getParticipantIds('c1'), ['u1', 'u2']);
+    await engine.flush();
+    expect(remote.calls, ['join:c1']);
   });
 }

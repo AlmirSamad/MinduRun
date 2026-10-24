@@ -134,12 +134,30 @@ class SyncedCompetitionRepository implements CompetitionRepository {
     _engine.enqueue(() => _engine.remote.insertCompetition(competition));
     return competition;
   }
+
+  @override
+  Competition? joinCompetition(String competitionId, String userId) {
+    final competition = _cache.joinCompetition(competitionId, userId);
+    if (competition != null) {
+      _engine.enqueue(() => _engine.remote.joinCompetition(competitionId));
+    }
+    return competition;
+  }
 }
 
 class SyncedActivityRepository implements ActivityRepository {
-  SyncedActivityRepository(this._engine);
+  SyncedActivityRepository(this._engine, {this.evidence});
   final SyncEngine _engine;
+
+  /// Uploads the activity's screenshot first when it is not on the server yet.
+  final SyncedEvidenceRepository? evidence;
+  final Map<String, Future<bool>> _saves = {};
   InMemoryActivityRepository get _cache => _engine.activities;
+
+  @override
+  Future<bool> whenSaved(String activityId) =>
+      _saves[activityId] ??
+      Future.value(_cache.getActivity(activityId) != null);
 
   @override
   Stream<void> get changes => _cache.changes;
@@ -178,23 +196,22 @@ class SyncedActivityRepository implements ActivityRepository {
       score: score,
       submittedAt: submittedAt,
     );
-    _engine.enqueue(() => _engine.remote.insertActivity(activity));
+    _saves[activity.id] = _engine.enqueue(() async {
+      if (evidenceRef.kind == EvidenceKind.remote) {
+        await evidence?.ensureUploaded(evidenceRef.id);
+      }
+      await _engine.remote.insertActivity(activity);
+    });
     return activity;
   }
 
+  /// Local only: the server derives moderation status in its report/vote
+  /// functions, and the next refresh brings the authoritative value.
   @override
   Activity? updateModerationStatus(
     String activityId,
     ActivityModerationStatus status,
-  ) {
-    final activity = _cache.updateModerationStatus(activityId, status);
-    if (activity != null) {
-      _engine.enqueue(
-        () => _engine.remote.updateActivityStatus(activityId, status),
-      );
-    }
-    return activity;
-  }
+  ) => _cache.updateModerationStatus(activityId, status);
 }
 
 class SyncedModerationRepository implements ModerationRepository {
@@ -219,28 +236,24 @@ class SyncedModerationRepository implements ModerationRepository {
   @override
   void clear() => _cache.clear();
 
+  /// The server function also puts the activity under review.
   @override
   void createReport(ActivityReport report) {
     _cache.createReport(report);
-    _engine.enqueue(() => _engine.remote.insertReport(report));
+    _engine.enqueue(() => _engine.remote.createReport(report));
   }
 
+  /// The server function also resolves the report when the minimum is met.
   @override
   void addVote(ReportVote vote) {
     _cache.addVote(vote);
-    _engine.enqueue(() => _engine.remote.insertVote(vote));
+    _engine.enqueue(() => _engine.remote.castVote(vote));
   }
 
+  /// Local only (optimistic); the server resolves in `cast_vote`.
   @override
-  ActivityReport? resolveReport(String reportId, ReportStatus status) {
-    final report = _cache.resolveReport(reportId, status);
-    if (report != null) {
-      _engine.enqueue(
-        () => _engine.remote.updateReportStatus(reportId, status),
-      );
-    }
-    return report;
-  }
+  ActivityReport? resolveReport(String reportId, ReportStatus status) =>
+      _cache.resolveReport(reportId, status);
 }
 
 /// Uploads selected screenshots to the storage bucket under the user's
@@ -250,9 +263,19 @@ class SyncedEvidenceRepository implements EvidenceRepository {
   final SyncEngine _engine;
   final String userId;
   final Map<String, Uint8List> _bytes = {};
+  final Set<String> _uploaded = {};
 
   @override
   EvidenceRef registerAsset(String assetPath) => EvidenceRef.asset(assetPath);
+
+  /// Runs inside a queued job: uploads [path] unless already on the server.
+  Future<void> ensureUploaded(String path) async {
+    if (_uploaded.contains(path)) return;
+    final bytes = _bytes[path];
+    if (bytes == null) throw StateError('Evidência indisponível.');
+    await _engine.remote.uploadEvidence(path, bytes);
+    _uploaded.add(path);
+  }
 
   @override
   EvidenceRef storeBytes(Uint8List bytes) {
@@ -264,7 +287,9 @@ class SyncedEvidenceRepository implements EvidenceRepository {
     final path = '$userId/${newRemoteId('evidence')}.$extension';
     final copy = Uint8List.fromList(bytes).asUnmodifiableView();
     _bytes[path] = copy;
-    _engine.enqueue(() => _engine.remote.uploadEvidence(path, copy));
+    // Start uploading while the user fills in the form; the activity job
+    // retries it if this attempt fails.
+    _engine.enqueue(() => ensureUploaded(path), silent: true);
     return EvidenceRef(id: path, kind: EvidenceKind.remote);
   }
 

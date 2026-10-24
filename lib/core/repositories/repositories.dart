@@ -55,6 +55,10 @@ abstract interface class CompetitionRepository {
     required DateTime now,
   });
 
+  /// Appends [userId] to the participants (rules checked by the caller).
+  /// Returns the updated competition, or null if it does not exist.
+  Competition? joinCompetition(String competitionId, String userId);
+
   /// Seed/data-layer insertion. User actions use createLocalCompetition.
   void createCompetition(Competition competition);
   void updateCompetition(Competition competition);
@@ -87,6 +91,10 @@ abstract interface class ActivityRepository {
     String activityId,
     ActivityModerationStatus status,
   );
+
+  /// Completes with whether the activity is durably stored (always true for
+  /// local storage; in synced mode, once the server accepted it).
+  Future<bool> whenSaved(String activityId);
   void clear();
 }
 

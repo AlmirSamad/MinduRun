@@ -5,7 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../models/models.dart';
 import 'remote_store.dart';
 
-/// [RemoteStore] backed by the tables in `supabase/schema.sql`.
+/// [RemoteStore] backed by `supabase/schema.sql` and
+/// `supabase/migrations/002_join_and_server_moderation.sql`.
 class SupabaseRemoteStore implements RemoteStore {
   SupabaseRemoteStore(this._client);
 
@@ -36,58 +37,78 @@ class SupabaseRemoteStore implements RemoteStore {
 
   @override
   Future<void> upsertProfile(User user) =>
-      _client.from('profiles').upsert(RemoteRows.userRow(user));
+      _guard(() => _client.from('profiles').upsert(RemoteRows.userRow(user)));
 
   @override
   Future<void> insertRoom(Room room) =>
-      _client.from('rooms').insert(RemoteRows.roomRow(room));
+      _guard(() => _client.from('rooms').insert(RemoteRows.roomRow(room)));
 
   @override
-  Future<void> insertMember(String roomId, String userId) => _client
-      .from('room_members')
-      .insert({'room_id': roomId, 'user_id': userId});
+  Future<void> insertMember(String roomId, String userId) => _guard(
+    () => _client.from('room_members').insert({
+      'room_id': roomId,
+      'user_id': userId,
+    }),
+  );
 
   @override
-  Future<void> insertCompetition(Competition competition) => _client
-      .from('competitions')
-      .insert(RemoteRows.competitionRow(competition));
+  Future<void> insertCompetition(Competition competition) => _guard(
+    () => _client
+        .from('competitions')
+        .insert(RemoteRows.competitionRow(competition)),
+  );
 
   @override
-  Future<void> insertActivity(Activity activity) =>
-      _client.from('activities').insert(RemoteRows.activityRow(activity));
+  Future<void> joinCompetition(String competitionId) => _guard(
+    () => _client.rpc(
+      'join_competition',
+      params: {'p_competition_id': competitionId},
+    ),
+  );
 
   @override
-  Future<void> updateActivityStatus(
-    String activityId,
-    ActivityModerationStatus status,
-  ) => _client
-      .from('activities')
-      .update({'moderation_status': status.name})
-      .eq('id', activityId);
+  Future<void> insertActivity(Activity activity) => _guard(
+    () => _client.from('activities').insert(RemoteRows.activityRow(activity)),
+  );
 
   @override
-  Future<void> insertReport(ActivityReport report) =>
-      _client.from('reports').insert(RemoteRows.reportRow(report));
+  Future<void> createReport(ActivityReport report) => _guard(
+    () => _client.rpc(
+      'create_report',
+      params: {
+        'p_id': report.id,
+        'p_activity_id': report.activityId,
+        'p_reason': report.reason.name,
+        'p_details': report.details,
+      },
+    ),
+  );
 
   @override
-  Future<void> updateReportStatus(String reportId, ReportStatus status) =>
-      _client
-          .from('reports')
-          .update({'status': status.name})
-          .eq('id', reportId);
+  Future<void> castVote(ReportVote vote) => _guard(
+    () => _client.rpc(
+      'cast_vote',
+      params: {
+        'p_id': vote.id,
+        'p_report_id': vote.reportId,
+        'p_vote': vote.vote.name,
+      },
+    ),
+  );
 
   @override
-  Future<void> insertVote(ReportVote vote) =>
-      _client.from('votes').insert(RemoteRows.voteRow(vote));
-
-  @override
-  Future<void> uploadEvidence(String path, Uint8List bytes) => _client.storage
-      .from(bucket)
-      .uploadBinary(
-        path,
-        bytes,
-        fileOptions: FileOptions(contentType: evidenceContentType(bytes)),
-      );
+  Future<void> uploadEvidence(String path, Uint8List bytes) => _guard(
+    () => _client.storage
+        .from(bucket)
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: evidenceContentType(bytes),
+            upsert: true,
+          ),
+        ),
+  );
 
   @override
   String evidenceUrl(String path) =>
@@ -104,6 +125,23 @@ class SupabaseRemoteStore implements RemoteStore {
         )
         .subscribe();
     return () => _client.removeChannel(channel);
+  }
+
+  /// Turns rule violations raised by the database into [RemoteRejected];
+  /// network failures keep their original type.
+  static Future<void> _guard(Future<Object?> Function() call) async {
+    try {
+      await call();
+    } on PostgrestException catch (error) {
+      // P0001: `raise exception` in our functions (Portuguese message).
+      if (error.code == 'P0001') throw RemoteRejected(error.message);
+      if (error.code == '42501') {
+        throw const RemoteRejected(
+          'O servidor recusou a operação (sem permissão ou fora do prazo).',
+        );
+      }
+      rethrow;
+    }
   }
 }
 

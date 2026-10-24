@@ -76,6 +76,7 @@ class _SyncedStartupState extends State<SyncedStartup> {
         moderation: InMemoryModerationRepository(),
       );
       await engine.refresh(throwOnError: true);
+      final evidence = SyncedEvidenceRepository(engine, userId: userId);
       final container = ProviderContainer(
         overrides: [
           appModeProvider.overrideWithValue(AppMode.synced),
@@ -93,14 +94,12 @@ class _SyncedStartupState extends State<SyncedStartup> {
             SyncedCompetitionRepository(engine),
           ),
           activityRepositoryProvider.overrideWithValue(
-            SyncedActivityRepository(engine),
+            SyncedActivityRepository(engine, evidence: evidence),
           ),
           moderationRepositoryProvider.overrideWithValue(
             SyncedModerationRepository(engine),
           ),
-          evidenceRepositoryProvider.overrideWithValue(
-            SyncedEvidenceRepository(engine, userId: userId),
-          ),
+          evidenceRepositoryProvider.overrideWithValue(evidence),
           evidencePickerProvider.overrideWithValue(pickCompressedImageBytes),
         ],
       );

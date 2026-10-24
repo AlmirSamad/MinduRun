@@ -109,11 +109,13 @@ class _ActivitySubmissionPageState
     }
   }
 
-  void _publish() {
+  /// Confirms only after the activity is stored (server-accepted in synced
+  /// mode); on failure the form stays filled so the user can retry.
+  Future<void> _publish() async {
     if (_published || _picking || _preview == null) return;
     setState(() => _published = true);
     try {
-      ref
+      final activity = ref
           .read(activitiesControllerProvider.notifier)
           .submitActivity(
             competitionId: widget.competitionId,
@@ -122,6 +124,17 @@ class _ActivitySubmissionPageState
             pace: _pace.text,
             evidence: _evidence,
           );
+      final saved = await ref
+          .read(activityRepositoryProvider)
+          .whenSaved(activity.id);
+      if (!mounted) return;
+      if (!saved) {
+        setState(() {
+          _published = false;
+          _error = 'Não foi possível enviar a atividade. Verifique a internet e toque em publicar novamente.';
+        });
+        return;
+      }
       // Replacing this page also works when the form was opened by a direct URL.
       context.go(AppRoutes.competition(widget.competitionId));
       ScaffoldMessenger.of(context)
@@ -283,7 +296,9 @@ class _ActivitySubmissionPageState
                     onPressed: _preview == null || _picking || _published
                         ? null
                         : _publish,
-                    child: const Text('Publicar atividade'),
+                    child: Text(
+                      _published ? 'Enviando…' : 'Publicar atividade',
+                    ),
                   ),
                 ],
               ),

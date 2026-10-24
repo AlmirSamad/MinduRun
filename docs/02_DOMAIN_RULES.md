@@ -23,6 +23,14 @@ Rules:
 - activity submission is allowed only while the competition is considered active;
 - competition participants remain associated with the competition in memory.
 
+Participants start as a snapshot of the room members at creation. A room
+member who is not yet a participant may join later ("Participar da
+competição") while the competition is `SCHEDULED` or `ACTIVE`; joining is not
+possible once it is `FINISHED` or `CANCELLED`. Joining appends to the
+participant list (it never removes anyone) and immediately makes the member
+eligible to submit, report and vote. In synced mode the server enforces the
+same rule (`join_competition`) and uses server time for the submission window.
+
 ## Activity submission
 
 Required:
@@ -111,8 +119,9 @@ Starter policy:
 - after minimum, strict majority decides;
 - tie keeps activity valid.
 
-Eligibility uses the competition participant snapshot, never current room
-membership. The reporter may vote normally; the author may only observe.
+Eligibility uses the competition participant list (creation snapshot plus
+late joins), never current room membership. The minimum is computed when each
+vote is cast. The reporter may vote normally; the author may only observe.
 Votes cannot be edited or replaced. At the minimum count, resolve immediately:
 INVALID > VALID upholds the report and rejects the activity; all other outcomes
 (including ties) dismiss the report and republish the activity. Resolved reports
@@ -122,6 +131,12 @@ Moderation has no period restriction: eligible participants may report and
 complete reviews after the competition ends. Only activity submission requires
 ACTIVE. The UI shows total votes collected and the current user's own vote,
 without exposing a partial VALID/INVALID tally.
+
+In synced mode, reports and votes go through server functions
+(`create_report`, `cast_vote` in `supabase/migrations/002_*.sql`) that mirror
+`ModerationService` and resolve each report atomically; clients cannot change
+moderation status directly. The app still validates first for immediate
+feedback, and the server result replaces the local one on the next refresh.
 
 ## Ranking
 
