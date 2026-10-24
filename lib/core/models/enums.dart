@@ -8,6 +8,9 @@ enum EvidenceKind {
 
   /// Bytes held by the in-memory evidence repository for this session.
   memory,
+
+  /// Object path in the Supabase `evidence` storage bucket.
+  remote,
 }
 
 /// Moderation state of a submitted activity.

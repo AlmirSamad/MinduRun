@@ -1,7 +1,7 @@
 name: mindurun
 description: "MinduRun: MVP acadêmico local de competições entre amigos."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.1+3
 
 environment:
   sdk: ^3.13.5
@@ -12,6 +12,8 @@ dependencies:
   flutter_riverpod: ^3.4.3
   go_router: ^18.1.1
   file_selector: ^1.1.0
+  supabase_flutter: ^2.18.3
+  image_picker: ^1.2.4
 
 dev_dependencies:
   flutter_test:

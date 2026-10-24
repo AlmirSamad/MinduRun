@@ -8,7 +8,10 @@ import '../session/session_providers.dart';
 /// Repository snapshots notify all room readers after a successful mutation.
 class RoomsController extends Notifier<List<Room>> {
   @override
-  List<Room> build() => ref.watch(roomRepositoryProvider).listRooms();
+  List<Room> build() {
+    ref.watch(syncRevisionProvider);
+    return ref.watch(roomRepositoryProvider).listRooms();
+  }
 
   String? validateName(String? name) => RoomRules.validateName(name);
 

@@ -2,8 +2,11 @@ import 'dart:typed_data';
 
 import '../models/models.dart';
 
-/// Repository contracts. Current implementations are in-memory only; a
-/// future backend can provide alternative implementations.
+/// Repository contracts. In-memory implementations back demo mode and act as
+/// the local cache of the Supabase-synced mode.
+
+/// Generates a globally unique id for a new entity (e.g. `room-…`).
+typedef IdFactory = String Function(String prefix);
 
 abstract interface class UserRepository {
   List<User> listUsers();
@@ -52,6 +55,10 @@ abstract interface class CompetitionRepository {
     required DateTime now,
   });
 
+  /// Appends [userId] to the participants (rules checked by the caller).
+  /// Returns the updated competition, or null if it does not exist.
+  Competition? joinCompetition(String competitionId, String userId);
+
   /// Seed/data-layer insertion. User actions use createLocalCompetition.
   void createCompetition(Competition competition);
   void updateCompetition(Competition competition);
@@ -84,6 +91,10 @@ abstract interface class ActivityRepository {
     String activityId,
     ActivityModerationStatus status,
   );
+
+  /// Completes with whether the activity is durably stored (always true for
+  /// local storage; in synced mode, once the server accepted it).
+  Future<bool> whenSaved(String activityId);
   void clear();
 }
 

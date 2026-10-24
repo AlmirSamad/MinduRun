@@ -1,7 +1,9 @@
 # Instalação em Dispositivos (Android e iPhone)
 
-Guia para gerar o app e instalá-lo no próprio celular. Os dados continuam
-apenas em memória: ao fechar o app, o cenário de demonstração é recriado.
+Guia para gerar o app e instalá-lo no próprio celular. Este build é o modo
+demonstração: os dados ficam apenas em memória e, ao fechar o app, o cenário
+de demonstração é recriado. Para o teste real com vários celulares e dados
+compartilhados, veja `12_SUPABASE.md`.
 
 | Plataforma | Situação | Precisa de |
 |---|---|---|

@@ -8,8 +8,10 @@ import '../session/session_providers.dart';
 
 class CompetitionsController extends Notifier<List<Competition>> {
   @override
-  List<Competition> build() =>
-      ref.watch(competitionRepositoryProvider).listCompetitions();
+  List<Competition> build() {
+    ref.watch(syncRevisionProvider);
+    return ref.watch(competitionRepositoryProvider).listCompetitions();
+  }
 
   Competition createCompetition({
     required String roomId,
@@ -35,6 +37,34 @@ class CompetitionsController extends Notifier<List<Competition>> {
     );
     state = repo.listCompetitions();
     return competition;
+  }
+
+  /// Late join by a room member (see [CompetitionRules.canJoin]).
+  Competition joinCompetition(String competitionId) {
+    final user = ref.read(currentUserProvider);
+    if (user == null) throw StateError('Selecione um usuário.');
+    final repo = ref.read(competitionRepositoryProvider);
+    final competition = repo.getCompetition(competitionId);
+    final room = competition == null
+        ? null
+        : ref.read(roomRepositoryProvider).getRoom(competition.roomId);
+    if (competition == null ||
+        room == null ||
+        !CompetitionRules.canJoin(
+          competition: competition,
+          room: room,
+          userId: user.id,
+          effectiveStatus: ref
+              .read(competitionStateServiceProvider)
+              .effectiveStatus(competition, ref.read(clockProvider)()),
+        )) {
+      throw StateError(
+        'Você não pode participar: entre na sala e verifique se a competição ainda não terminou.',
+      );
+    }
+    final updated = repo.joinCompetition(competitionId, user.id)!;
+    state = repo.listCompetitions();
+    return updated;
   }
 }
 
@@ -84,6 +114,21 @@ final competitionByIdProvider = Provider.family<Competition?, String>((
     return null;
   }
   return competition;
+});
+
+final canJoinCompetitionProvider = Provider.family<bool, String>((ref, id) {
+  final competition = ref.watch(competitionByIdProvider(id));
+  if (competition == null) return false;
+  final room = ref.watch(roomDetailsProvider(competition.roomId));
+  return room != null &&
+      CompetitionRules.canJoin(
+        competition: competition,
+        room: room,
+        userId: ref.watch(currentUserProvider)?.id,
+        effectiveStatus: ref
+            .watch(competitionStateServiceProvider)
+            .effectiveStatus(competition, ref.watch(clockProvider)()),
+      );
 });
 
 final competitionParticipantsProvider = Provider.family<List<User>, String>((

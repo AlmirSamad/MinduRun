@@ -48,37 +48,51 @@ Then:
 - Workflow/repository task → `docs/09_DEVELOPMENT_WORKFLOW.md`
 - Scope/priorities → `docs/10_ROADMAP.md`
 
+## Scope change: Supabase synced mode (2026-10-23)
+
+The user approved a Supabase backend for a real multi-phone field test
+(2026-10-30). The app now has two modes, selected at build time:
+
+- **Demo mode** (default, no configuration): everything below about in-memory
+  data and seeded demo users still applies. Tests run in this mode.
+- **Synced mode** (`--dart-define-from-file=config/supabase.json`): Supabase
+  anonymous auth, Postgres tables, realtime and the `evidence` storage bucket.
+  See `docs/12_SUPABASE.md`.
+
+Supabase is the only backend. Do not add other backends, custom APIs or
+servers. Domain rules stay in Dart domain services; the in-memory repositories
+remain the local cache behind the synced repositories.
+
 ## Current technical baseline
 
-Do not add backend infrastructure unless the user explicitly changes scope.
+Do not add backend infrastructure beyond the Supabase synced mode unless the
+user explicitly changes scope again.
 
 - Framework: Flutter + Dart
-- Primary runtime target: Web / Chrome
+- Primary runtime target: Web / Chrome (demo), Android (real test)
 - Secondary runtime target: Android
 - UI strategy: mobile-first and responsive
 - State management: Riverpod
 - Navigation: GoRouter
-- Persistence: none
-- Database: none
-- API: none
-- Backend: none
-- Authentication: simulated/local only
-- Data source: in-memory repositories
+- Persistence: none in demo mode; Supabase in synced mode
+- Database: Supabase Postgres (synced mode only)
+- API: none besides the Supabase client SDK
+- Backend: Supabase (synced mode only)
+- Authentication: demo profile selector / Supabase anonymous auth + name
+- Data source: in-memory repositories (cache synced with Supabase in synced mode)
 - Demo data: seeded mock data
 - Tests: Flutter test
 - CI: optional for academic MVP
 
 ## MVP invariants
 
-- No backend.
-- No REST API.
-- No database.
+- No backend other than Supabase (synced mode).
+- No REST API of our own.
+- No database other than Supabase Postgres.
 - No Firebase.
-- No Supabase.
-- No PostgreSQL.
 - No SQLite/Hive/Isar/shared_preferences for domain persistence.
-- No cloud storage.
-- No production authentication.
+- No cloud storage other than the Supabase `evidence` bucket.
+- No production authentication (anonymous auth only).
 - No GPS.
 - No route tracking.
 - No background location.
@@ -86,7 +100,7 @@ Do not add backend infrastructure unless the user explicitly changes scope.
 - No OCR.
 - No microservices.
 
-All domain data exists only while the app is running.
+In demo mode, all domain data exists only while the app is running.
 
 If the app is restarted, it is acceptable and expected for data/state to reset.
 

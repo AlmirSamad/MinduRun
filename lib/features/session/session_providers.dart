@@ -12,6 +12,7 @@ final currentUserProvider = Provider<User?>(
 );
 
 /// Demo users available for selection (from the seeded repository).
-final availableUsersProvider = Provider<List<User>>(
-  (ref) => ref.watch(userRepositoryProvider).listUsers(),
-);
+final availableUsersProvider = Provider<List<User>>((ref) {
+  ref.watch(syncRevisionProvider);
+  return ref.watch(userRepositoryProvider).listUsers();
+});

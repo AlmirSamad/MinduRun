@@ -50,9 +50,10 @@ class ModerationController extends Notifier<int> {
     if ((text?.length ?? 0) > ModerationService.maxDetailsLength) {
       throw const FormatException('Use até 500 caracteres nos detalhes.');
     }
+    final newId = ref.read(newIdProvider);
     String id;
     do {
-      id = 'report-local-${_nextId++}';
+      id = newId?.call('report') ?? 'report-local-${_nextId++}';
     } while (repo.getReport(id) != null);
     final report = ActivityReport(
       id: id,
