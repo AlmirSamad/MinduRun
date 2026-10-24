@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/theme/app_theme.dart';
-import '../../../core/models/models.dart';
+import '../../../core/services/profile_rules.dart';
 import '../../../app/theme/app_widgets.dart';
 import '../session_providers.dart';
 import '../../demo/presentation/demo_menu.dart';
@@ -21,10 +21,10 @@ class UserSelectionPage extends ConsumerWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          Container(
-            decoration: const BoxDecoration(
-              gradient: AppTheme.heroGradient,
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+          HeroCard(
+            padding: EdgeInsets.zero,
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(32),
             ),
             child: SafeArea(
               bottom: false,
@@ -34,37 +34,15 @@ class UserSelectionPage extends ConsumerWidget {
                   children: [
                     const Align(
                       alignment: Alignment.centerRight,
-                      child: IconTheme(
-                        data: IconThemeData(color: Colors.white),
-                        child: DemoMenu(),
-                      ),
+                      child: DemoMenu(),
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.directions_run_rounded,
-                        size: 52,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'MinduRun',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
+                    const MinduLogo(stacked: true, height: 96),
+                    const SizedBox(height: 14),
                     Text(
                       'Corra com seus amigos. Compita. Valide.',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -74,12 +52,12 @@ class UserSelectionPage extends ConsumerWidget {
           ),
           if (ref.watch(appModeProvider) == AppMode.synced)
             const Padding(
-              padding: EdgeInsets.fromLTRB(20, 28, 20, 24),
+              padding: EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: _NameForm(),
             )
           else
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -114,10 +92,10 @@ class UserSelectionPage extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleMedium,
                           ),
-                          trailing: Icon(
+                          trailing: const Icon(
                             Icons.arrow_forward_ios_rounded,
                             size: 16,
-                            color: theme.colorScheme.primary,
+                            color: AppColors.primary,
                           ),
                           onTap: () => ref
                               .read(sessionControllerProvider.notifier)
@@ -134,6 +112,12 @@ class UserSelectionPage extends ConsumerWidget {
   }
 }
 
+/// Consent shown before joining the real test (docs/07_SECURITY_PRIVACY.md).
+const privacyNotice =
+    'Entendo que meu nome, minhas corridas e os prints que eu enviar ficam '
+    'visíveis para os participantes das minhas salas, são usados só neste '
+    'teste acadêmico e serão apagados ao final dele.';
+
 /// Synced mode: the phone's anonymous account gets the participant's name.
 class _NameForm extends ConsumerStatefulWidget {
   const _NameForm();
@@ -145,6 +129,8 @@ class _NameForm extends ConsumerStatefulWidget {
 class _NameFormState extends ConsumerState<_NameForm> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
+  bool _consented = false;
+  bool _consentMissing = false;
 
   @override
   void dispose() {
@@ -152,22 +138,12 @@ class _NameFormState extends ConsumerState<_NameForm> {
     super.dispose();
   }
 
-  static String? _validate(String? value) {
-    final length = value?.trim().length ?? 0;
-    return length < 2 || length > 30
-        ? 'Informe um nome de 2 a 30 caracteres.'
-        : null;
-  }
-
   void _submit() {
-    if (!_form.currentState!.validate()) return;
-    final user = User(
-      id: ref.read(remoteUserIdProvider)!,
-      displayName: _name.text.trim(),
-    );
-    ref.read(userRepositoryProvider).addUser(user);
-    ref.read(syncRevisionProvider.notifier).bump();
-    ref.read(sessionControllerProvider.notifier).selectUser(user);
+    final valid = _form.currentState!.validate();
+    setState(() => _consentMissing = !_consented);
+    if (!valid || !_consented) return;
+    ref.read(howItWorksFlagProvider).pending = true;
+    ref.read(sessionControllerProvider.notifier).saveProfile(_name.text);
   }
 
   @override
@@ -193,13 +169,30 @@ class _NameFormState extends ConsumerState<_NameForm> {
             autofocus: true,
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.done,
-            maxLength: 30,
+            maxLength: ProfileRules.maxNameLength,
             decoration: const InputDecoration(
               labelText: 'Seu nome',
               prefixIcon: Icon(Icons.person_outline_rounded),
             ),
-            validator: _validate,
+            validator: ProfileRules.validateName,
             onFieldSubmitted: (_) => _submit(),
+          ),
+          CheckboxListTile(
+            key: const Key('privacy-consent'),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            value: _consented,
+            onChanged: (value) => setState(() {
+              _consented = value ?? false;
+              if (_consented) _consentMissing = false;
+            }),
+            title: const Text(privacyNotice),
+            subtitle: _consentMissing
+                ? Text(
+                    'Confirme para participar do teste.',
+                    style: TextStyle(color: theme.colorScheme.error),
+                  )
+                : null,
           ),
           const SizedBox(height: 12),
           FilledButton.icon(

@@ -27,6 +27,8 @@ MinduRun is a Flutter multiplatform project with:
 | Build order | `10_ROADMAP.md` |
 | Install on Android/iPhone | `11_INSTALACAO_DISPOSITIVOS.md` |
 | Real test / Supabase synced mode | `12_SUPABASE.md` |
+| What changed since the first MVP (start here if new) | `13_HISTORICO_DE_MUDANCAS.md` |
+| Architecture decisions | `adr/` (`0001-supabase-synced-mode.md`) |
 
 ## Important architecture rule
 

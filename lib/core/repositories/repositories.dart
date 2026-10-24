@@ -35,6 +35,10 @@ abstract interface class RoomRepository {
   /// Adds [userId] to the room members. Returns the updated room, or null if
   /// the room does not exist.
   Room? joinRoom(String roomId, String userId);
+
+  /// Removes [userId] from the members (leave or owner removal; rules are
+  /// checked by the caller). Returns the updated room, or null.
+  Room? removeMember(String roomId, String userId);
   List<String> getMemberIds(String roomId);
   void clear();
 }
@@ -86,11 +90,15 @@ abstract interface class ActivityRepository {
     required EvidenceRef evidenceRef,
     required int score,
     required DateTime submittedAt,
+    String? evidenceHash,
   });
   Activity? updateModerationStatus(
     String activityId,
     ActivityModerationStatus status,
   );
+
+  /// Deletes the author's activity (rules checked by the caller).
+  bool deleteActivity(String activityId);
 
   /// Completes with whether the activity is durably stored (always true for
   /// local storage; in synced mode, once the server accepted it).
@@ -113,6 +121,21 @@ abstract interface class ModerationRepository {
   void clear();
 }
 
+abstract interface class SocialRepository {
+  /// Notifications for every mutation; readers query the repository again.
+  Stream<void> get changes;
+  void dispose();
+  List<ActivityLike> listLikes(String activityId);
+
+  /// Adds or removes the user's like (rules checked by the caller).
+  void setLike(ActivityLike like, {required bool liked});
+
+  /// Oldest first.
+  List<ActivityComment> listComments(String activityId);
+  void addComment(ActivityComment comment);
+  void clear();
+}
+
 abstract interface class EvidenceRepository {
   /// Registers a bundled asset as evidence and returns its reference.
   EvidenceRef registerAsset(String assetPath);
@@ -122,6 +145,9 @@ abstract interface class EvidenceRepository {
 
   /// Returns bytes for a memory reference, or null.
   Uint8List? getBytes(EvidenceRef ref);
+
+  /// Fingerprint of stored user-selected evidence (null for assets).
+  String? hashOf(EvidenceRef ref);
 
   bool exists(EvidenceRef ref);
 

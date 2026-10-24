@@ -59,6 +59,25 @@ For the college presentation:
 - keep the content visually similar to a phone app;
 - ensure primary flows remain usable with mouse input.
 
+## Visual identity
+
+Dark theme only (`AppTheme.dark()` in `lib/app/theme/app_theme.dart`).
+All colors and fonts come from `AppColors` / `AppFonts`; screens never use
+raw hex values.
+
+- Background `#0C0D0F`, cards `#17181B` with a 1 px `#2C2E31` border.
+- Primary actions: electric lime `#C5F658`. Energy actions (register
+  activity, create room/competition, publish) and points: ice blue `#8FD3E9`.
+- Status: published `#5ED8A9`, under review `#F8C655`, rejected/cancelled
+  `#FD7273`; competitions scheduled = ice blue, active = lime, finished = grey.
+- Hero cards: graphite gradient `#1D1F23 → #2A2E34` with faint diagonal
+  stripes (`HeroCard`).
+- Text font Archivo; points, positions and the brand use Barlow Condensed
+  ExtraBold Italic (`AppFonts.numbers`). The font files are not bundled yet,
+  so the platform font is used as a fallback.
+- Logo: lime bolt + ice-blue speed stroke (`MinduSymbol`, `MinduLogo`), drawn
+  in code from the same geometry as the SVGs in `assets/brand/`.
+
 ## MVP screens
 
 - demo user selection/local login;

@@ -1,11 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/app_widgets.dart';
 import '../../../core/models/models.dart';
+import '../../../core/services/competition_countdown.dart';
 import '../competition_providers.dart';
 import 'create_competition_dialog.dart';
 
@@ -15,34 +17,42 @@ String formatCompetitionDate(DateTime date) {
   return '${two(local.day)}/${two(local.month)}/${local.year} ${two(local.hour)}:${two(local.minute)}';
 }
 
+/// Effective status right now; no cached stored status and no timer.
+CompetitionStatus watchCompetitionStatus(
+  WidgetRef ref,
+  Competition competition,
+) => ref
+    .watch(competitionStateServiceProvider)
+    .effectiveStatus(competition, ref.watch(clockProvider)());
+
 /// Re-evaluated on every build; no cached stored status and no timer.
 class CompetitionStatusBadge extends ConsumerWidget {
   const CompetitionStatusBadge({super.key, required this.competition});
   final Competition competition;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref
-        .watch(competitionStateServiceProvider)
-        .effectiveStatus(competition, ref.watch(clockProvider)());
-    final (label, color, icon) = switch (status) {
+    final (label, color, icon) = switch (watchCompetitionStatus(
+      ref,
+      competition,
+    )) {
       CompetitionStatus.scheduled => (
         'AGENDADA',
-        const Color(0xFF3D5AFE),
-        Icons.schedule_rounded,
+        AppColors.scheduled,
+        Icons.event_rounded,
       ),
       CompetitionStatus.active => (
         'ATIVA',
-        const Color(0xFF0B7A55),
-        Icons.bolt_rounded,
+        AppColors.active,
+        Icons.local_fire_department_rounded,
       ),
       CompetitionStatus.finished => (
         'FINALIZADA',
-        const Color(0xFF616161),
-        Icons.flag_rounded,
+        AppColors.finished,
+        Icons.sports_score_rounded,
       ),
       CompetitionStatus.cancelled => (
         'CANCELADA',
-        const Color(0xFFC62828),
+        AppColors.cancelled,
         Icons.block_rounded,
       ),
     };
@@ -50,21 +60,24 @@ class CompetitionStatusBadge extends ConsumerWidget {
   }
 }
 
-/// Start/end dates with icons.
-class CompetitionPeriod extends StatelessWidget {
+/// Countdown, start/end dates and participant count with icons.
+class CompetitionPeriod extends ConsumerWidget {
   const CompetitionPeriod({super.key, required this.competition});
   final Competition competition;
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.textTheme.bodyMedium?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countdown = competitionCountdown(
+      competition,
+      ref.watch(clockProvider)(),
+      state: ref.watch(competitionStateServiceProvider),
     );
+    final muted = Theme.of(context).textTheme.bodySmall
+        ?.copyWith(color: AppColors.textSecondary);
     Widget line(IconData icon, String text) => Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          Icon(icon, size: 16, color: AppColors.textSecondary),
           const SizedBox(width: 6),
           Expanded(child: Text(text, style: muted)),
         ],
@@ -73,13 +86,41 @@ class CompetitionPeriod extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (countdown != null)
+          Padding(
+            key: const Key('competition-countdown'),
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.timer_outlined,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    countdown,
+                    style: muted?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         line(
-          Icons.play_circle_outline_rounded,
+          Icons.calendar_month_rounded,
           'Início: ${formatCompetitionDate(competition.startsAt)}',
         ),
         line(
-          Icons.outlined_flag_rounded,
+          Icons.sports_score_rounded,
           'Término: ${formatCompetitionDate(competition.endsAt)}',
+        ),
+        line(
+          Icons.group_rounded,
+          '${competition.participantIds.length} participantes',
         ),
       ],
     );
@@ -91,7 +132,6 @@ class RoomCompetitionsSection extends ConsumerWidget {
   final String roomId;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final competitions = ref.watch(competitionsForRoomProvider(roomId));
     final canCreate = ref.watch(canCreateCompetitionProvider(roomId));
     return Column(
@@ -100,63 +140,102 @@ class RoomCompetitionsSection extends ConsumerWidget {
         const SectionTitle('Competições', icon: Icons.emoji_events_rounded),
         if (canCreate) ...[
           FilledButton.icon(
+            style: AppTheme.energyButton(),
             onPressed: () => showDialog<void>(
               context: context,
               builder: (_) => CreateCompetitionDialog(roomId: roomId),
             ),
-            icon: const Icon(Icons.add),
+            icon: const Icon(Icons.add_rounded),
             label: const Text('Criar competição'),
           ),
           const SizedBox(height: 12),
         ],
-        if (competitions.isEmpty) const Text('Nenhuma competição nesta sala.'),
+        if (competitions.isEmpty)
+          const EmptyState(
+            icon: Icons.emoji_events_rounded,
+            message: 'Nenhuma competição nesta sala.',
+          ),
         for (final competition in competitions)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () =>
-                    context.push(AppRoutes.competition(competition.id)),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              competition.name,
-                              style: theme.textTheme.titleMedium,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          CompetitionStatusBadge(competition: competition),
-                          const SizedBox(width: 8),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      CompetitionPeriod(competition: competition),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton.icon(
-                          onPressed: () => context.push(
-                            AppRoutes.competition(competition.id),
-                          ),
-                          icon: const Icon(Icons.arrow_forward_rounded),
-                          iconAlignment: IconAlignment.end,
-                          label: const Text('Ver competição'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            child: _CompetitionCard(competition: competition),
           ),
       ],
+    );
+  }
+}
+
+class _CompetitionCard extends ConsumerWidget {
+  const _CompetitionCard({required this.competition});
+  final Competition competition;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active =
+        watchCompetitionStatus(ref, competition) == CompetitionStatus.active;
+    void open() => context.push(AppRoutes.competition(competition.id));
+    const arrow = Icon(Icons.arrow_forward_rounded);
+    const label = Text('Ver competição');
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: active
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radius),
+              side: BorderSide(
+                color: AppColors.accent.withValues(alpha: 0.4),
+                width: 2,
+              ),
+            )
+          : null,
+      child: InkWell(
+        onTap: open,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      competition.name,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CompetitionStatusBadge(competition: competition),
+                ],
+              ),
+              const SizedBox(height: 6),
+              CompetitionPeriod(competition: competition),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 44,
+                child: active
+                    ? FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                        ),
+                        onPressed: open,
+                        icon: arrow,
+                        iconAlignment: IconAlignment.end,
+                        label: label,
+                      )
+                    : OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                        ),
+                        onPressed: open,
+                        icon: arrow,
+                        iconAlignment: IconAlignment.end,
+                        label: label,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -30,6 +30,31 @@ class RoomsController extends Notifier<List<Room>> {
     return room;
   }
 
+  /// The current user leaves [roomId] (not allowed for the owner). Their
+  /// competition participation and activities are kept.
+  void leaveRoom(String roomId) {
+    final user = ref.read(currentUserProvider);
+    final repo = ref.read(roomRepositoryProvider);
+    final room = repo.getRoom(roomId);
+    if (room == null || !RoomRules.canLeave(room, user?.id)) {
+      throw StateError('O criador não pode sair da própria sala.');
+    }
+    repo.removeMember(roomId, user!.id);
+    state = repo.listRooms();
+  }
+
+  /// The owner removes another member.
+  void removeMember(String roomId, String userId) {
+    final user = ref.read(currentUserProvider);
+    final repo = ref.read(roomRepositoryProvider);
+    final room = repo.getRoom(roomId);
+    if (room == null || !RoomRules.canRemove(room, user?.id, userId)) {
+      throw StateError('Somente o criador pode remover outros membros.');
+    }
+    repo.removeMember(roomId, userId);
+    state = repo.listRooms();
+  }
+
   Room? joinRoom(String code) {
     final user = ref.read(currentUserProvider);
     if (user == null) throw StateError('Selecione um usuário.');

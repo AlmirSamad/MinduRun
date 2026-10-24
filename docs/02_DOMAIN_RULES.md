@@ -6,7 +6,13 @@
 - A room has an owner.
 - A room contains members.
 - Join flow can use a simple generated/mock code.
-- No server authorization exists in this MVP; access rules are enforced locally.
+- No server authorization exists in demo mode; access rules are enforced
+  locally (synced mode repeats them in Supabase policies/functions).
+- A member may leave a room; the owner cannot leave. The owner may remove
+  any other member. Leaving or removal only changes room membership:
+  competition participation, activities and scores already recorded stay.
+- Invites: the code is the main path; `mindurun://open/join/CODE` opens the
+  join flow on Android (also when opened before entering the app).
 
 ## Competitions
 
@@ -45,6 +51,21 @@ Recommended representation:
 - distance: `double` kilometers;
 - duration: integer seconds;
 - average pace: integer seconds per kilometer.
+
+The form suggests the pace from distance and duration (rounded to the
+second, so it always passes the consistency check); the user may override
+it to match the running app.
+
+The author may delete an activity only while it is `PUBLISHED`, has never
+been reported (any report, even dismissed) and its competition is `ACTIVE`,
+so deletion can neither dodge moderation nor change a finished result.
+
+## Likes and comments
+
+- Only participants of the activity's competition like or comment.
+- Nobody likes their own activity; one like per user, toggled on/off.
+- Comments are trimmed, 1–280 characters, oldest first; no editing.
+- Likes and comments never affect score or ranking.
 
 ## Consistency validation
 
@@ -163,3 +184,29 @@ historical scores from distance. Rejected activities stay visible in the
 feed with zero contribution and their original score identified separately.
 
 No persisted ranking table is needed.
+
+## Final result
+
+Only a `FINISHED` competition has a result (`CompetitionResultService`),
+derived from the same ranking:
+- winner = first place, if it has points; nobody scoring means no winner;
+- participants tied with first place on score **and** accepted distance share
+  the victory (participant order is only visual, never a sporting advantage);
+- podium = up to three ranked entries with points;
+- while any report on the competition's activities is still open, the result
+  is shown as provisional, because moderation may continue after the end.
+
+## Duplicate evidence
+
+The same screenshot (SHA-256 of the image bytes) may back only one activity
+per competition, whatever that activity's moderation status. The app blocks
+it on preview and publish; in synced mode a unique index on
+`(competition_id, evidence_hash)` enforces it on the server. Bundled demo
+evidence has no fingerprint. Recompressed or cropped copies of the same
+screenshot are not detected; those still rely on reports (`DUPLICATE_ACTIVITY`).
+
+## Time
+
+Demo mode uses device time. Synced mode corrects the device clock with the
+server clock (`server_now`) on every refresh, and the server validates the
+submission window with its own time.

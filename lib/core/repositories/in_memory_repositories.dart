@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../services/room_rules.dart';
 import '../services/competition_rules.dart';
 import '../services/domain_services.dart';
+import '../services/evidence_hash.dart';
 import 'repositories.dart';
 
 /// In-memory implementations. Data lives only while the app runs.
@@ -101,6 +102,17 @@ class InMemoryRoomRepository implements RoomRepository {
     if (room.memberIds.contains(userId)) return room;
     final updated = room.copyWith(
       memberIds: List.unmodifiable([...room.memberIds, userId]),
+    );
+    _rooms[roomId] = updated;
+    return updated;
+  }
+
+  @override
+  Room? removeMember(String roomId, String userId) {
+    final room = _rooms[roomId];
+    if (room == null) return null;
+    final updated = room.copyWith(
+      memberIds: List.unmodifiable(room.memberIds.where((id) => id != userId)),
     );
     _rooms[roomId] = updated;
     return updated;
@@ -227,6 +239,13 @@ class InMemoryActivityRepository implements ActivityRepository {
       Future.value(_activities.containsKey(activityId));
 
   @override
+  bool deleteActivity(String activityId) {
+    final removed = _activities.remove(activityId) != null;
+    if (removed) _changes.add(null);
+    return removed;
+  }
+
+  @override
   Activity createLocalActivity({
     required String competitionId,
     required String userId,
@@ -236,6 +255,7 @@ class InMemoryActivityRepository implements ActivityRepository {
     required EvidenceRef evidenceRef,
     required int score,
     required DateTime submittedAt,
+    String? evidenceHash,
   }) {
     String id;
     do {
@@ -252,6 +272,7 @@ class InMemoryActivityRepository implements ActivityRepository {
       score: score,
       moderationStatus: ActivityModerationStatus.published,
       submittedAt: submittedAt,
+      evidenceHash: evidenceHash,
     );
     createActivity(activity);
     return activity;
@@ -391,6 +412,60 @@ class InMemoryModerationRepository implements ModerationRepository {
   }
 }
 
+class InMemorySocialRepository implements SocialRepository {
+  final Map<String, ActivityLike> _likes = {};
+  final Map<String, ActivityComment> _comments = {};
+  final _changes = StreamController<void>.broadcast(sync: true);
+
+  static String _likeKey(String activityId, String userId) =>
+      '$activityId|$userId';
+
+  @override
+  Stream<void> get changes => _changes.stream;
+
+  @override
+  void dispose() => unawaited(_changes.close());
+
+  @override
+  List<ActivityLike> listLikes(String activityId) =>
+      List.unmodifiable(_likes.values.where((l) => l.activityId == activityId));
+
+  @override
+  void setLike(ActivityLike like, {required bool liked}) {
+    final key = _likeKey(like.activityId, like.userId);
+    if (liked) {
+      _likes[key] = like;
+    } else {
+      _likes.remove(key);
+    }
+    _changes.add(null);
+  }
+
+  @override
+  List<ActivityComment> listComments(String activityId) {
+    final list =
+        _comments.values.where((c) => c.activityId == activityId).toList()
+          ..sort((a, b) {
+            final order = a.createdAt.compareTo(b.createdAt);
+            return order == 0 ? a.id.compareTo(b.id) : order;
+          });
+    return List.unmodifiable(list);
+  }
+
+  @override
+  void addComment(ActivityComment comment) {
+    _comments[comment.id] = comment;
+    _changes.add(null);
+  }
+
+  @override
+  void clear() {
+    _likes.clear();
+    _comments.clear();
+    _changes.add(null);
+  }
+}
+
 class InMemoryEvidenceRepository implements EvidenceRepository {
   final Set<String> _assets = {};
   final Map<String, Uint8List> _bytes = {};
@@ -412,6 +487,12 @@ class InMemoryEvidenceRepository implements EvidenceRepository {
   @override
   Uint8List? getBytes(EvidenceRef ref) =>
       ref.kind == EvidenceKind.memory ? _bytes[ref.id] : null;
+
+  @override
+  String? hashOf(EvidenceRef ref) {
+    final bytes = getBytes(ref);
+    return bytes == null ? null : evidenceHash(bytes);
+  }
 
   @override
   bool exists(EvidenceRef ref) => switch (ref.kind) {

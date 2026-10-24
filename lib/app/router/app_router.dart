@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/session/presentation/demo_home_screen.dart';
+import '../../features/session/presentation/profile_page.dart';
 import '../../features/session/presentation/user_selection_page.dart';
 import '../../features/session/session_providers.dart';
 import '../../features/rooms/presentation/rooms_page.dart';
+import '../../features/rooms/presentation/join_invite_page.dart';
 import '../../features/rooms/presentation/room_details_page.dart';
 import '../../features/competitions/presentation/competition_details_page.dart';
 import '../../features/activities/presentation/activity_submission_page.dart';
@@ -19,7 +21,16 @@ abstract final class AppRoutes {
   static String competition(String id) =>
       '/competitions/${Uri.encodeComponent(id)}';
   static String newActivity(String id) => '${competition(id)}/activity/new';
+  static String join(String code) => '/join/${Uri.encodeComponent(code)}';
+  static const profile = '/profile';
 }
+
+/// Invite code opened before signing in; consumed right after entering.
+class PendingInvite {
+  String? code;
+}
+
+final pendingInviteProvider = Provider<PendingInvite>((ref) => PendingInvite());
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Refreshes redirects when the session changes, without recreating the
@@ -38,9 +49,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loggedIn = sessionListenable.value;
       final atSelection = state.matchedLocation == AppRoutes.selectUser;
-      if (!loggedIn && !atSelection) return AppRoutes.selectUser;
+      final invite = ref.read(pendingInviteProvider);
+      if (!loggedIn && !atSelection) {
+        final segments = state.uri.pathSegments;
+        if (segments.length == 2 && segments.first == 'join') {
+          invite.code = segments.last;
+        }
+        return AppRoutes.selectUser;
+      }
       if (loggedIn && (atSelection || state.matchedLocation == '/')) {
-        return AppRoutes.home;
+        final code = invite.code;
+        invite.code = null;
+        return code == null ? AppRoutes.home : AppRoutes.join(code);
       }
       return null;
     },
@@ -74,6 +94,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => ActivitySubmissionPage(
           competitionId: state.pathParameters['competitionId']!,
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/join/:code',
+        builder: (context, state) =>
+            JoinInvitePage(code: state.pathParameters['code']!),
       ),
     ],
   );

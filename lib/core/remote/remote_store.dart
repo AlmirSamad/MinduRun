@@ -11,6 +11,9 @@ class RemoteSnapshot {
     this.activities = const [],
     this.reports = const [],
     this.votes = const [],
+    this.likes = const [],
+    this.comments = const [],
+    this.serverTime,
   });
 
   final List<User> users;
@@ -19,6 +22,11 @@ class RemoteSnapshot {
   final List<Activity> activities;
   final List<ActivityReport> reports;
   final List<ReportVote> votes;
+  final List<ActivityLike> likes;
+  final List<ActivityComment> comments;
+
+  /// Server clock when the snapshot was read (corrects wrong phone clocks).
+  final DateTime? serverTime;
 }
 
 /// The server refused a write because a rule failed (e.g. the report was
@@ -55,6 +63,16 @@ abstract interface class RemoteStore {
 
   /// Uploads (or overwrites) an evidence object.
   Future<void> uploadEvidence(String path, Uint8List bytes);
+
+  /// Deletes the caller's activity (server re-checks the rules) and its
+  /// screenshot.
+  Future<void> deleteActivity(Activity activity);
+
+  /// Leaving a room, or the owner removing a member.
+  Future<void> removeMember(String roomId, String userId);
+
+  Future<void> setLike(ActivityLike like, {required bool liked});
+  Future<void> insertComment(ActivityComment comment);
 
   /// Public URL of an evidence object.
   String evidenceUrl(String path);
@@ -148,6 +166,7 @@ abstract final class RemoteRows {
       row['moderation_status'] as String,
     ),
     submittedAt: _parseDate(row['submitted_at']),
+    evidenceHash: row['evidence_hash'] as String?,
   );
 
   static Map<String, dynamic> activityRow(Activity a) => {
@@ -162,6 +181,7 @@ abstract final class RemoteRows {
     'score': a.score,
     'moderation_status': a.moderationStatus.name,
     'submitted_at': _date(a.submittedAt),
+    'evidence_hash': a.evidenceHash,
   };
 
   static ActivityReport report(Map<String, dynamic> row) => ActivityReport(
@@ -191,6 +211,34 @@ abstract final class RemoteRows {
     vote: VoteType.values.byName(row['vote'] as String),
     createdAt: _parseDate(row['created_at']),
   );
+
+  static ActivityLike like(Map<String, dynamic> row) => ActivityLike(
+    activityId: row['activity_id'] as String,
+    userId: row['user_id'] as String,
+    createdAt: _parseDate(row['created_at']),
+  );
+
+  static Map<String, dynamic> likeRow(ActivityLike l) => {
+    'activity_id': l.activityId,
+    'user_id': l.userId,
+    'created_at': _date(l.createdAt),
+  };
+
+  static ActivityComment comment(Map<String, dynamic> row) => ActivityComment(
+    id: row['id'] as String,
+    activityId: row['activity_id'] as String,
+    userId: row['user_id'] as String,
+    text: row['body'] as String,
+    createdAt: _parseDate(row['created_at']),
+  );
+
+  static Map<String, dynamic> commentRow(ActivityComment c) => {
+    'id': c.id,
+    'activity_id': c.activityId,
+    'user_id': c.userId,
+    'body': c.text,
+    'created_at': _date(c.createdAt),
+  };
 
   static Map<String, dynamic> voteRow(ReportVote v) => {
     'id': v.id,

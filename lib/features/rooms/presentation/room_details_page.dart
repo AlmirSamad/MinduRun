@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
+import '../../../app/theme/app_theme.dart';
 import '../../../app/theme/app_widgets.dart';
+import '../../../core/services/room_rules.dart';
+import '../../session/session_providers.dart';
 import '../room_providers.dart';
 import '../../competitions/presentation/competition_widgets.dart';
 
@@ -15,6 +20,7 @@ class RoomDetailsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final room = ref.watch(roomDetailsProvider(roomId));
+    final currentUserId = ref.watch(currentUserProvider)?.id;
     final members = ref.watch(roomMembersProvider(roomId));
     final owner = room == null
         ? null
@@ -24,7 +30,7 @@ class RoomDetailsPage extends ConsumerWidget {
         title: const Text('Detalhes da sala'),
         leading: IconButton(
           tooltip: 'Voltar',
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -41,97 +47,257 @@ class RoomDetailsPage extends ConsumerWidget {
                 child: Text('Sala não encontrada ou você não participa dela.'),
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              children: [
-                HeroCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        room.name,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Criador: ${owner?.displayName ?? room.ownerUserId}',
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
+          : RefreshIndicator(
+              onRefresh: ref.read(refreshDataProvider),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  HeroCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(room.name, style: theme.textTheme.headlineSmall),
+                        const SizedBox(height: 6),
+                        Row(
                           children: [
-                            const Icon(Icons.key_rounded, size: 20),
-                            const SizedBox(width: 10),
+                            const Icon(
+                              Icons.star_rounded,
+                              size: 16,
+                              color: AppColors.gold,
+                            ),
+                            const SizedBox(width: 4),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Código de convite',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.85,
-                                      ),
-                                    ),
-                                  ),
-                                  SelectableText(
-                                    room.inviteCode,
-                                    style: theme.textTheme.titleLarge?.copyWith(
-                                      color: Colors.white,
-                                      letterSpacing: 2,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                'Criador: ${owner?.displayName ?? room.ownerUserId}',
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SectionTitle(
-                  'Membros (${room.memberIds.length})',
-                  icon: Icons.people_alt_rounded,
-                ),
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      for (final member in members)
-                        ListTile(
-                          leading: UserAvatar(name: member.displayName),
-                          title: Text(
-                            member.displayName,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          trailing: member.id == room.ownerUserId
-                              ? StatusPill(
-                                  label: 'Proprietário',
-                                  color: theme.colorScheme.tertiary,
-                                  icon: Icons.star_rounded,
-                                )
-                              : null,
+                        const SizedBox(height: 16),
+                        _InviteCodeBox(
+                          code: room.inviteCode,
+                          roomName: room.name,
                         ),
-                    ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  SectionTitle(
+                    'Membros (${room.memberIds.length})',
+                    icon: Icons.group_rounded,
+                  ),
+                  Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        for (final (index, member) in members.indexed) ...[
+                          if (index > 0) const Divider(height: 1, indent: 72),
+                          ListTile(
+                            minTileHeight: 60,
+                            leading: UserAvatar(name: member.displayName),
+                            title: Text(
+                              member.displayName,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            trailing: member.id == room.ownerUserId
+                                ? const StatusPill(
+                                    label: 'Proprietário',
+                                    color: AppColors.gold,
+                                    icon: Icons.star_rounded,
+                                  )
+                                : RoomRules.canRemove(
+                                    room,
+                                    currentUserId,
+                                    member.id,
+                                  )
+                                ? IconButton(
+                                    key: ValueKey('remove-${member.id}'),
+                                    tooltip: 'Remover da sala',
+                                    icon: const Icon(
+                                      Icons.person_remove_outlined,
+                                    ),
+                                    onPressed: () => _confirmRoomAction(
+                                      context,
+                                      title: 'Remover ${member.displayName}?',
+                                      message: 'A pessoa sai da sala. Corridas e participação em competições já existentes continuam valendo.',
+                                      confirm: 'Remover',
+                                      action: () => ref
+                                          .read(
+                                            roomsControllerProvider.notifier,
+                                          )
+                                          .removeMember(roomId, member.id),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  RoomCompetitionsSection(roomId: roomId),
+                  if (RoomRules.canLeave(room, currentUserId)) ...[
+                    const SizedBox(height: 28),
+                    OutlinedButton.icon(
+                      key: const Key('leave-room'),
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text('Sair da sala'),
+                      onPressed: () => _confirmRoomAction(
+                        context,
+                        title: 'Sair de "${room.name}"?',
+                        message: 'Você deixa de ver a sala. Para voltar, use o código de convite.',
+                        confirm: 'Sair',
+                        action: () {
+                          ref
+                              .read(roomsControllerProvider.notifier)
+                              .leaveRoom(roomId);
+                          context.go(AppRoutes.home);
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+/// Confirmation for leaving a room or removing a member.
+Future<void> _confirmRoomAction(
+  BuildContext context, {
+  required String title,
+  required String message,
+  required String confirm,
+  required void Function() action,
+}) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: Text(confirm),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  try {
+    action();
+  } on StateError catch (error) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(error.message)));
+  }
+}
+
+/// Invite code in large sporty digits with a copy action.
+class _InviteCodeBox extends StatefulWidget {
+  const _InviteCodeBox({required this.code, required this.roomName});
+  final String code;
+  final String roomName;
+
+  @override
+  State<_InviteCodeBox> createState() => _InviteCodeBoxState();
+}
+
+class _InviteCodeBoxState extends State<_InviteCodeBox> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    final messenger = ScaffoldMessenger.of(context);
+    await Clipboard.setData(ClipboardData(text: widget.code));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    messenger.showSnackBar(const SnackBar(content: Text('Código copiado.')));
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  /// System share sheet (WhatsApp, Telegram…) with a ready invitation.
+  Future<void> _share() async {
+    final text = RoomRules.inviteMessage(
+      roomName: widget.roomName,
+      inviteCode: widget.code,
+    );
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: text, subject: 'Convite MinduRun'),
+      );
+    } catch (_) {
+      // Browsers without the Web Share API: fall back to the clipboard.
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Convite copiado. Cole na conversa.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.key_rounded, size: 20, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CÓDIGO DE CONVITE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 24),
-                RoomCompetitionsSection(roomId: roomId),
+                const SizedBox(height: 4),
+                SelectableText(
+                  widget.code,
+                  style: AppFonts.numbers(size: 24).copyWith(letterSpacing: 4),
+                ),
               ],
             ),
+          ),
+          IconButton(
+            tooltip: 'Compartilhar convite',
+            onPressed: _share,
+            icon: const Icon(Icons.share_rounded, color: AppColors.textPrimary),
+          ),
+          IconButton(
+            tooltip: 'Copiar código',
+            onPressed: _copy,
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                _copied ? Icons.check_rounded : Icons.content_copy_rounded,
+                key: ValueKey(_copied),
+                color: _copied ? AppColors.success : AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

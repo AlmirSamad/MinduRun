@@ -75,6 +75,14 @@ class ActivitiesController extends Notifier<List<Activity>> {
         !ref.read(evidenceRepositoryProvider).exists(evidence)) {
       throw const FormatException('Selecione uma imagem de evidência.');
     }
+    final duplicate = service.duplicateEvidenceError(
+      evidenceHash: ref.read(evidenceRepositoryProvider).hashOf(evidence),
+      competitionId: competitionId,
+      existing: ref
+          .read(activityRepositoryProvider)
+          .listCompetitionActivities(competitionId),
+    );
+    if (duplicate != null) throw FormatException(duplicate);
     final distanceKm = ActivityInput.parseDistance(distance);
     final durationSeconds = ActivityInput.parseDuration(duration);
     final paceSeconds = ActivityInput.parsePace(pace);
@@ -126,8 +134,35 @@ class ActivitiesController extends Notifier<List<Activity>> {
       evidenceRef: evidence!,
       score: values.score,
       submittedAt: ref.read(clockProvider)(),
+      evidenceHash: ref.read(evidenceRepositoryProvider).hashOf(evidence),
     );
     return activity;
+  }
+
+  /// Deletes the current user's activity when
+  /// [ActivitySubmissionService.canDelete] allows it.
+  void deleteActivity(String activityId) {
+    final repo = ref.read(activityRepositoryProvider);
+    final activity = repo.getActivity(activityId);
+    if (activity == null ||
+        !ref
+            .read(activitySubmissionServiceProvider)
+            .canDelete(
+              activity: activity,
+              userId: ref.read(currentUserProvider)?.id,
+              competition: ref.read(
+                competitionByIdProvider(activity.competitionId),
+              ),
+              reports: ref
+                  .read(moderationRepositoryProvider)
+                  .listActivityReports(activityId),
+              now: ref.read(clockProvider)(),
+            )) {
+      throw StateError(
+        'Só é possível excluir a própria atividade, sem denúncias, enquanto a competição estiver ativa.',
+      );
+    }
+    repo.deleteActivity(activityId);
   }
 }
 
