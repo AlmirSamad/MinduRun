@@ -13,8 +13,10 @@ Regras de domínio, telas e testes são os mesmos nos dois modos.
 ## Como funciona
 
 - **Identidade:** cada celular entra com uma conta anônima do Supabase. Na
-  primeira abertura a pessoa digita o nome (2 a 30 caracteres). A sessão fica
-  salva no aparelho; não há "Trocar usuário" nem "Resetar demonstração".
+  primeira abertura a pessoa digita o nome (2 a 30 caracteres) e marca o aviso
+  de privacidade (obrigatório). A sessão fica salva no aparelho; não há
+  "Trocar usuário" nem "Resetar demonstração". O nome pode ser corrigido
+  depois pelo ícone de lápis (**Alterar nome**) na tela de salas.
 - **Dados:** os repositórios em memória viram um cache local. Cada ação é
   aplicada no cache na hora e enviada ao servidor numa fila (em ordem). O cache
   é recarregado do servidor ao receber notificações em tempo real, a cada 20 s
@@ -82,6 +84,24 @@ Gere sempre na mesma máquina (o APK é assinado com a chave de debug dela).
    competição** (possível enquanto ela estiver agendada ou ativa).
 5. Corridas, prints, denúncias e votos aparecem nos outros celulares em poucos
    segundos.
+
+## Acompanhar o teste
+
+`supabase/monitoring.sql` tem consultas só de leitura para colar no SQL
+Editor (uma por vez): visão geral, quem entrou e em quais salas, salas com
+código e membros, competições com status pela hora do servidor e quem ainda
+não tocou em "Participar", ranking ao vivo, últimas corridas (avisa se o
+print não chegou ao storage) e andamento das denúncias/votos.
+
+## Depois do teste: apagar os dados
+
+1. **Storage → evidence → Empty bucket** (apaga os prints; o banco não deixa
+   apagar arquivos por SQL).
+2. **SQL Editor:** rode `supabase/cleanup.sql`. Ele apaga todas as linhas do
+   MinduRun e as contas anônimas, mantém tabelas/funções e mostra uma checagem
+   final em que tudo deve dar 0.
+
+Alternativa mais simples: excluir o projeto inteiro no Supabase.
 
 ## Limitações conhecidas
 

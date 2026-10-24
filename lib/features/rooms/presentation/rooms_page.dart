@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/bootstrap/providers.dart';
 import '../../../app/router/app_router.dart';
 import '../../../app/theme/app_widgets.dart';
+import '../../session/presentation/rename_dialog.dart';
 import '../../session/session_providers.dart';
 import '../room_providers.dart';
 import 'room_form_dialog.dart';
@@ -38,6 +39,15 @@ class RoomsPage extends ConsumerWidget {
               icon: const Icon(Icons.switch_account),
               onPressed: () =>
                   ref.read(sessionControllerProvider.notifier).logout(),
+            )
+          else
+            IconButton(
+              tooltip: 'Alterar nome',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => const RenameDialog(),
+              ),
             ),
         ],
       ),
