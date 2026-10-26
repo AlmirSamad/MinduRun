@@ -65,6 +65,18 @@ class FakeRemoteStore implements RemoteStore {
   Future<void> uploadEvidence(String path, Uint8List bytes) =>
       _write('upload:$path');
   @override
+  Future<void> deleteActivity(Activity activity) =>
+      _write('delete:${activity.id}');
+  @override
+  Future<void> removeMember(String roomId, String userId) =>
+      _write('leave:$roomId:$userId');
+  @override
+  Future<void> setLike(ActivityLike like, {required bool liked}) =>
+      _write('${liked ? 'like' : 'unlike'}:${like.activityId}:${like.userId}');
+  @override
+  Future<void> insertComment(ActivityComment comment) =>
+      _write('comment:${comment.id}');
+  @override
   String evidenceUrl(String path) => 'https://example.test/$path';
   @override
   void Function() watch(void Function() onChange) {
@@ -94,6 +106,17 @@ void main() {
   });
 
   tearDown(() => engine.dispose());
+  Activity submit(SyncedActivityRepository repo, EvidenceRef ref) =>
+      repo.createLocalActivity(
+        competitionId: 'c1',
+        userId: 'u1',
+        distanceKm: 5,
+        durationSeconds: 1800,
+        averagePaceSecondsPerKm: 360,
+        evidenceRef: ref,
+        score: 500,
+        submittedAt: DateTime(2026, 10, 30),
+      );
 
   test('remote ids and invite codes are unique and unambiguous', () {
     final ids = {for (var i = 0; i < 500; i++) newRemoteId('room')};
@@ -226,6 +249,95 @@ void main() {
     expect(remote.calls, ['upload:${ref.id}', 'activity:${activity.id}']);
   });
 
+  test('delete, leave, like and comment reach the server', () async {
+    engine.rooms.createRoom(
+      Room(
+        id: 'r1',
+        name: 'Sala',
+        ownerUserId: 'u1',
+        inviteCode: 'ABC234',
+        memberIds: const ['u1', 'u2'],
+        createdAt: DateTime(2026, 10, 30),
+      ),
+    );
+    final activities = SyncedActivityRepository(engine);
+    final activity = submit(
+      activities,
+      const EvidenceRef(id: 'u1/e.jpg', kind: EvidenceKind.remote),
+    );
+    final like = ActivityLike(
+      activityId: activity.id,
+      userId: 'u2',
+      createdAt: DateTime(2026, 10, 30),
+    );
+    final social = SyncedSocialRepository(engine);
+    social.setLike(like, liked: true);
+    social.addComment(
+      ActivityComment(
+        id: 'k1',
+        activityId: activity.id,
+        userId: 'u2',
+        text: 'Boa!',
+        createdAt: DateTime(2026, 10, 30),
+      ),
+    );
+    SyncedRoomRepository(engine).removeMember('r1', 'u2');
+    expect(activities.deleteActivity(activity.id), isTrue);
+    await engine.flush();
+    expect(remote.calls, [
+      'activity:${activity.id}',
+      'like:${activity.id}:u2',
+      'comment:k1',
+      'leave:r1:u2',
+      'delete:${activity.id}',
+    ]);
+  });
+
+  test('refresh rebuilds likes and comments', () async {
+    remote.snapshot = RemoteSnapshot(
+      likes: [
+        ActivityLike(activityId: 'a1', userId: 'u2', createdAt: DateTime(2026)),
+      ],
+      comments: [
+        ActivityComment(
+          id: 'k1',
+          activityId: 'a1',
+          userId: 'u2',
+          text: 'Boa!',
+          createdAt: DateTime(2026),
+        ),
+      ],
+    );
+    await engine.refresh();
+    expect(engine.social.listLikes('a1'), hasLength(1));
+    expect(engine.social.listComments('a1').single.text, 'Boa!');
+  });
+
+  test('status reports pending writes, last sync and offline', () async {
+    final statuses = <SyncStatus>[];
+    engine.onStatus = statuses.add;
+    SyncedUserRepository(engine)
+        .addUser(const User(id: 'u1', displayName: 'Ana'));
+    expect(statuses.last.pendingWrites, 1);
+    await engine.flush();
+    expect(statuses.last.pendingWrites, 0);
+    await engine.refresh();
+    expect(engine.status.lastSync, isNotNull);
+    expect(engine.status.offline, isFalse);
+    remote.failFetch = true;
+    await engine.refresh();
+    expect(statuses.last.offline, isTrue);
+  });
+
+  test('refresh corrects the phone clock with the server time', () async {
+    remote.snapshot = RemoteSnapshot(
+      serverTime: DateTime.now().add(const Duration(hours: 3)),
+    );
+    await engine.refresh();
+    final drift = engine.now().difference(DateTime.now());
+    expect(drift.inMinutes, closeTo(180, 1));
+  });
+
   test('realtime notifications schedule a refresh', () async {
     engine.start();
     remote.snapshot = const RemoteSnapshot(
@@ -235,18 +347,6 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 10));
     expect(engine.users.getUser('u9'), isNotNull);
   });
-
-  Activity submit(SyncedActivityRepository repo, EvidenceRef ref) =>
-      repo.createLocalActivity(
-        competitionId: 'c1',
-        userId: 'u1',
-        distanceKm: 5,
-        durationSeconds: 1800,
-        averagePaceSecondsPerKm: 360,
-        evidenceRef: ref,
-        score: 500,
-        submittedAt: DateTime(2026, 10, 30),
-      );
 
   test('activity is confirmed only after the server accepts it', () async {
     final evidence = SyncedEvidenceRepository(engine, userId: 'u1');

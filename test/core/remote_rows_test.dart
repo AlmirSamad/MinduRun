@@ -18,10 +18,12 @@ void main() {
       score: 523,
       moderationStatus: ActivityModerationStatus.underReview,
       submittedAt: DateTime.utc(2026, 10, 30, 9),
+      evidenceHash: 'abc123',
     );
     final row = RemoteRows.activityRow(activity);
     expect(row['moderation_status'], 'underReview');
     final back = RemoteRows.activity(row);
+    expect(back.evidenceHash, 'abc123');
     expect(back.evidenceRef, activity.evidenceRef);
     expect(back.moderationStatus, ActivityModerationStatus.underReview);
     expect(back.submittedAt.isAtSameMomentAs(activity.submittedAt), isTrue);

@@ -41,6 +41,21 @@ Do not request:
 
 Only request/trigger image selection access if the chosen web/Android picker requires it.
 
-## Future note
+## Synced mode (real test with Supabase)
 
-If backend or persistence is added later, security/privacy requirements must be redesigned before production use.
+The sections above describe demo mode. In synced mode (`12_SUPABASE.md`):
+
+- **Consent:** before entering, each participant must check a notice that
+  their name, runs and screenshots are visible to their rooms' participants,
+  used only for this academic test and deleted afterwards
+  (`privacyNotice` in `user_selection_page.dart`).
+- **Data collected:** display name, rooms, competitions, activity numbers,
+  screenshots (compressed), reports and votes. No e-mail, phone, password or
+  location. Accounts are anonymous Supabase sign-ins tied to the device.
+- **Access:** any signed-in participant can read all MinduRun rows; writes are
+  limited to the caller's own rows, and moderation goes through server
+  functions. Screenshots sit in a public bucket (anyone with the link).
+- **Deletion:** after the test, empty the `evidence` bucket and run
+  `supabase/cleanup.sql` (or delete the Supabase project).
+- **Still not production:** no account recovery, no rate limiting beyond
+  Supabase defaults, no audit log. Redesign before any real-world use.

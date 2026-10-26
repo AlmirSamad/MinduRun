@@ -3,6 +3,20 @@ import 'dart:async';
 import '../repositories/in_memory_repositories.dart';
 import 'remote_store.dart';
 
+/// What the user needs to trust the data on screen.
+class SyncStatus {
+  const SyncStatus({
+    this.lastSync,
+    this.offline = false,
+    this.pendingWrites = 0,
+  });
+
+  /// Last successful download from the server (phone clock).
+  final DateTime? lastSync;
+  final bool offline;
+  final int pendingWrites;
+}
+
 /// Keeps the in-memory repositories (the local cache) in sync with the
 /// remote store.
 ///
@@ -18,10 +32,11 @@ class SyncEngine {
     required this.competitions,
     required this.activities,
     required this.moderation,
+    InMemorySocialRepository? social,
     this.pollInterval = const Duration(seconds: 20),
     this.debounce = const Duration(milliseconds: 400),
     this.jobTimeout = const Duration(seconds: 45),
-  });
+  }) : social = social ?? InMemorySocialRepository();
 
   final RemoteStore remote;
   final InMemoryUserRepository users;
@@ -29,6 +44,7 @@ class SyncEngine {
   final InMemoryCompetitionRepository competitions;
   final InMemoryActivityRepository activities;
   final InMemoryModerationRepository moderation;
+  final InMemorySocialRepository social;
   final Duration pollInterval;
   final Duration debounce;
 
@@ -37,6 +53,24 @@ class SyncEngine {
 
   /// Called after the cache was rebuilt from the remote store.
   void Function()? onRefreshed;
+
+  /// Called whenever [status] changes.
+  void Function(SyncStatus status)? onStatus;
+  DateTime? _lastSync;
+
+  SyncStatus get status => SyncStatus(
+    lastSync: _lastSync,
+    offline: _offline,
+    pendingWrites: _pending,
+  );
+
+  void _emitStatus() => onStatus?.call(status);
+
+  /// Server time minus phone time, updated on every refresh.
+  Duration clockOffset = Duration.zero;
+
+  /// Phone time corrected to the server clock.
+  DateTime now() => DateTime.now().add(clockOffset);
 
   final _messages = StreamController<String>.broadcast();
   Future<void> _queue = Future.value();
@@ -60,6 +94,7 @@ class SyncEngine {
   /// server, unless [silent] (used for best-effort prefetch uploads).
   Future<bool> enqueue(Future<void> Function() job, {bool silent = false}) {
     _pending++;
+    _emitStatus();
     final result = Completer<bool>();
     _queue = _queue.then((_) async {
       try {
@@ -78,6 +113,7 @@ class SyncEngine {
         }
       } finally {
         _pending--;
+        _emitStatus();
         if (_pending == 0 && _refreshWanted) unawaited(refresh());
       }
     });
@@ -97,7 +133,14 @@ class SyncEngine {
     _refreshing = true;
     _refreshWanted = false;
     try {
+      final started = DateTime.now();
       final snapshot = await remote.fetchAll();
+      final serverTime = snapshot.serverTime;
+      if (serverTime != null) {
+        // Assume the server read happened halfway through the round trip.
+        final midpoint = started.add(DateTime.now().difference(started) ~/ 2);
+        clockOffset = serverTime.difference(midpoint);
+      }
       if (_pending > 0) {
         // A local write started meanwhile; this snapshot may predate it.
         _refreshWanted = true;
@@ -105,7 +148,9 @@ class SyncEngine {
         _apply(snapshot);
         if (_offline) _messages.add('Conexão restabelecida.');
         _offline = false;
+        _lastSync = DateTime.now();
         onRefreshed?.call();
+        _emitStatus();
       }
     } catch (_) {
       if (throwOnError) rethrow;
@@ -113,6 +158,7 @@ class SyncEngine {
         _messages.add('Sem conexão com o servidor. Tentando novamente…');
       }
       _offline = true;
+      _emitStatus();
     } finally {
       _refreshing = false;
     }
@@ -151,5 +197,10 @@ class SyncEngine {
     moderation.clear();
     snapshot.reports.forEach(moderation.putReport);
     snapshot.votes.forEach(moderation.putVote);
+    social.clear();
+    for (final like in snapshot.likes) {
+      social.setLike(like, liked: true);
+    }
+    snapshot.comments.forEach(social.addComment);
   }
 }

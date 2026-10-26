@@ -14,6 +14,7 @@ import '../../features/activities/evidence_picker.dart';
 import '../../features/session/session_providers.dart';
 import '../app.dart';
 import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 import 'app_config.dart';
 import 'providers.dart';
 
@@ -80,6 +81,8 @@ class _SyncedStartupState extends State<SyncedStartup> {
       final container = ProviderContainer(
         overrides: [
           appModeProvider.overrideWithValue(AppMode.synced),
+          clockProvider.overrideWithValue(engine.now),
+          refreshDataProvider.overrideWithValue(engine.refresh),
           remoteUserIdProvider.overrideWithValue(userId),
           newIdProvider.overrideWithValue(newRemoteId),
           evidenceUrlProvider.overrideWithValue(remote.evidenceUrl),
@@ -100,11 +103,17 @@ class _SyncedStartupState extends State<SyncedStartup> {
             SyncedModerationRepository(engine),
           ),
           evidenceRepositoryProvider.overrideWithValue(evidence),
+          socialRepositoryProvider.overrideWithValue(
+            SyncedSocialRepository(engine),
+          ),
           evidencePickerProvider.overrideWithValue(pickCompressedImageBytes),
         ],
       );
       engine.onRefreshed = () =>
           container.read(syncRevisionProvider.notifier).bump();
+      engine.onStatus = (status) =>
+          container.read(syncStatusProvider.notifier).set(status);
+      container.read(syncStatusProvider.notifier).set(engine.status);
       engine.start();
       _lifecycle = AppLifecycleListener(onResume: engine.refreshSoon);
       final me = engine.users.getUser(userId);
@@ -132,7 +141,7 @@ class _SyncedStartupState extends State<SyncedStartup> {
     }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.dark(),
       home: Scaffold(
         body: Center(
           child: Padding(
@@ -140,13 +149,14 @@ class _SyncedStartupState extends State<SyncedStartup> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  _failed
-                      ? Icons.wifi_off_rounded
-                      : Icons.directions_run_rounded,
-                  size: 56,
-                  color: AppTheme.seed,
-                ),
+                if (_failed)
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    size: 56,
+                    color: AppColors.error,
+                  )
+                else
+                  const MinduLogo(stacked: true, height: 72),
                 const SizedBox(height: 16),
                 Text(
                   _failed

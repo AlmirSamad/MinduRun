@@ -23,7 +23,7 @@ class MinduRunApp extends ConsumerWidget {
       title: 'MinduRun',
       scaffoldMessengerKey: _messengerKey,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.dark(),
       routerConfig: ref.watch(appRouterProvider),
       builder: (context, child) => MobileShell(child: child!),
     );
@@ -42,7 +42,7 @@ class MobileShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      color: AppColors.ink,
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: maxWidth),

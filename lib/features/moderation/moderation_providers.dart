@@ -140,6 +140,21 @@ class ModerationController extends Notifier<int> {
 final moderationControllerProvider =
     NotifierProvider<ModerationController, int>(ModerationController.new);
 
+/// Author's own, never-reported, PUBLISHED activity in an ACTIVE competition.
+final canDeleteActivityProvider = Provider.family<bool, String>((ref, id) {
+  final activity = ref.watch(activityByIdProvider(id));
+  if (activity == null) return false;
+  return ref
+      .watch(activitySubmissionServiceProvider)
+      .canDelete(
+        activity: activity,
+        userId: ref.watch(currentUserProvider)?.id,
+        competition: ref.watch(competitionByIdProvider(activity.competitionId)),
+        reports: ref.watch(reportsForActivityProvider(id)),
+        now: ref.watch(clockProvider)(),
+      );
+});
+
 final reportsForActivityProvider =
     Provider.family<List<ActivityReport>, String>((ref, id) {
       ref.watch(moderationControllerProvider);

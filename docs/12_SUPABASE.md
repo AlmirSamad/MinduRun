@@ -13,8 +13,10 @@ Regras de domínio, telas e testes são os mesmos nos dois modos.
 ## Como funciona
 
 - **Identidade:** cada celular entra com uma conta anônima do Supabase. Na
-  primeira abertura a pessoa digita o nome (2 a 30 caracteres). A sessão fica
-  salva no aparelho; não há "Trocar usuário" nem "Resetar demonstração".
+  primeira abertura a pessoa digita o nome (2 a 30 caracteres) e marca o aviso
+  de privacidade (obrigatório). A sessão fica salva no aparelho; não há
+  "Trocar usuário" nem "Resetar demonstração". O nome pode ser corrigido
+  depois pelo ícone de lápis (**Alterar nome**) na tela de salas.
 - **Dados:** os repositórios em memória viram um cache local. Cada ação é
   aplicada no cache na hora e enviada ao servidor numa fila (em ordem). O cache
   é recarregado do servidor ao receber notificações em tempo real, a cada 20 s
@@ -33,6 +35,23 @@ Regras de domínio, telas e testes são os mesmos nos dois modos.
   repetem as regras do app e apuram a votação de forma atômica. O servidor
   também só aceita corrida de participante, dentro do período, pelo relógio
   do servidor. Nenhum celular altera status de moderação diretamente.
+- **Relógio:** a cada recarga o app mede a hora do servidor e corrige a do
+  celular, então status (agendada/ativa/finalizada) é igual em todos.
+- **Print duplicado:** o mesmo print não pode ser usado duas vezes na mesma
+  competição (bloqueado no app e por índice único no banco).
+- **Resultado final:** quando a competição termina, aparece campeão e pódio
+  ("provisório" enquanto houver denúncia em votação).
+- **Experiência de uso:** ritmo preenchido automaticamente; compartilhar
+  convite (mensagem pronta + link `mindurun://open/join/CODIGO`); card
+  "Pendências" (votações abertas e competições para participar); puxar para
+  atualizar com "Atualizado há X"; contagem regressiva; "Como funciona".
+- **Migração 004:** excluir a própria corrida (sem denúncias, competição
+  ativa), sair da sala / dono remover membro, curtidas e comentários, e
+  "Meu perfil" com histórico. Sem a 004 o app abre normalmente, mas essas
+  ações falham ao salvar.
+- **Link de convite:** o WhatsApp não deixa tocar em links `mindurun://`;
+  o código continua sendo o caminho principal. O link funciona onde for
+  clicável (ex.: Telegram, navegador) com o app instalado.
 
 Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
 `lib/app/bootstrap/synced_startup.dart`.
@@ -43,8 +62,10 @@ Código: `lib/core/remote/` (store, engine, repositórios sincronizados) e
    (São Paulo)*).
 2. **SQL Editor → New query**: cole o conteúdo de `supabase/schema.sql` e clique
    em **Run**. (Rodar de novo apaga todos os dados do MinduRun.)
-   Depois, numa nova query, rode `supabase/migrations/002_join_and_server_moderation.sql`
-   (pode ser rodado de novo sem perder dados).
+   Depois, cada uma numa nova query e nesta ordem, rode as migrações de
+   `supabase/migrations/` (podem ser rodadas de novo sem perder dados):
+   `002_join_and_server_moderation.sql`, `003_duplicates_and_clock.sql` e
+   `004_social_leave_delete.sql`.
 3. **Authentication → Sign In / Providers**: ative **Allow anonymous sign-ins**.
 4. **Project Settings → API Keys**: copie a *Project URL* e a *Publishable key*
    (ou a *anon public* legada).
@@ -75,6 +96,24 @@ Gere sempre na mesma máquina (o APK é assinado com a chave de debug dela).
    competição** (possível enquanto ela estiver agendada ou ativa).
 5. Corridas, prints, denúncias e votos aparecem nos outros celulares em poucos
    segundos.
+
+## Acompanhar o teste
+
+`supabase/monitoring.sql` tem consultas só de leitura para colar no SQL
+Editor (uma por vez): visão geral, quem entrou e em quais salas, salas com
+código e membros, competições com status pela hora do servidor e quem ainda
+não tocou em "Participar", ranking ao vivo, últimas corridas (avisa se o
+print não chegou ao storage) e andamento das denúncias/votos.
+
+## Depois do teste: apagar os dados
+
+1. **Storage → evidence → Empty bucket** (apaga os prints; o banco não deixa
+   apagar arquivos por SQL).
+2. **SQL Editor:** rode `supabase/cleanup.sql`. Ele apaga todas as linhas do
+   MinduRun e as contas anônimas, mantém tabelas/funções e mostra uma checagem
+   final em que tudo deve dar 0.
+
+Alternativa mais simples: excluir o projeto inteiro no Supabase.
 
 ## Limitações conhecidas
 

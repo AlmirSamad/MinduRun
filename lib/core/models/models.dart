@@ -115,6 +115,7 @@ class Activity {
     required this.score,
     required this.moderationStatus,
     required this.submittedAt,
+    this.evidenceHash,
   });
 
   final String id;
@@ -128,6 +129,9 @@ class Activity {
   final ActivityModerationStatus moderationStatus;
   final DateTime submittedAt;
 
+  /// SHA-256 of the evidence bytes (null for bundled demo evidence).
+  final String? evidenceHash;
+
   Activity copyWith({ActivityModerationStatus? moderationStatus}) => Activity(
     id: id,
     competitionId: competitionId,
@@ -139,6 +143,7 @@ class Activity {
     score: score,
     moderationStatus: moderationStatus ?? this.moderationStatus,
     submittedAt: submittedAt,
+    evidenceHash: evidenceHash,
   );
 }
 
@@ -187,5 +192,35 @@ class ReportVote {
   final String reportId;
   final String voterUserId;
   final VoteType vote;
+  final DateTime createdAt;
+}
+
+/// "Curtida" given by a participant to another participant's activity.
+class ActivityLike {
+  const ActivityLike({
+    required this.activityId,
+    required this.userId,
+    required this.createdAt,
+  });
+
+  final String activityId;
+  final String userId;
+  final DateTime createdAt;
+}
+
+/// Short comment on an activity.
+class ActivityComment {
+  const ActivityComment({
+    required this.id,
+    required this.activityId,
+    required this.userId,
+    required this.text,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String activityId;
+  final String userId;
+  final String text;
   final DateTime createdAt;
 }

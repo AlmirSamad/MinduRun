@@ -15,6 +15,7 @@ class DemoController extends Notifier<void> {
   void reset() {
     ref.read(sessionControllerProvider.notifier).logout();
     ref.read(demoSeedServiceProvider).reset(ref.read(clockProvider)());
+    ref.read(socialRepositoryProvider).clear();
     ref.invalidate(availableUsersProvider);
     ref.invalidate(roomsControllerProvider);
     ref.invalidate(competitionsControllerProvider);

@@ -150,6 +150,62 @@ class RankingService {
   }
 }
 
+/// Outcome of a finished competition, derived from its ranking.
+class CompetitionResult {
+  const CompetitionResult({
+    required this.winnerIds,
+    required this.podium,
+    required this.openReportCount,
+  });
+
+  /// Co-winners when tied on score and accepted distance; empty when nobody
+  /// scored.
+  final List<String> winnerIds;
+
+  /// Up to three ranking entries with points.
+  final List<RankingEntry> podium;
+
+  /// Reports still being voted; while > 0 the result may change.
+  final int openReportCount;
+
+  bool get isFinal => openReportCount == 0;
+}
+
+/// Final result rules: only FINISHED competitions have a result. Ties on
+/// score and distance share the victory (participant order is only visual).
+class CompetitionResultService {
+  const CompetitionResultService({
+    this.competitionState = const CompetitionStateService(),
+  });
+
+  final CompetitionStateService competitionState;
+
+  CompetitionResult? result({
+    required Competition competition,
+    required DateTime now,
+    required List<RankingEntry> ranking,
+    required int openReportCount,
+  }) {
+    if (competitionState.effectiveStatus(competition, now) !=
+        CompetitionStatus.finished) {
+      return null;
+    }
+    final scored = ranking.where((e) => e.score > 0).toList();
+    final top = scored.isEmpty ? null : scored.first;
+    return CompetitionResult(
+      winnerIds: [
+        if (top != null)
+          for (final e in scored)
+            if (e.score == top.score &&
+                e.acceptedDistanceKm == top.acceptedDistanceKm)
+              e.userId,
+      ],
+      podium: List.unmodifiable(scored.take(3)),
+      openReportCount: openReportCount,
+    );
+  }
+}
+
 /// Outcome of evaluating votes on a report.
 enum ModerationOutcome { pending, keepValid, reject }
 
